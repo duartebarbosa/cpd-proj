@@ -7,12 +7,18 @@
 
 char line[LINE_SIZE];
 
+typedef struct {
+	int cabinet;
+	char * score;
+} document;
+
 struct {
 	int cabinet;
 	int document;
 	int subject;
 	FILE * in;
 	FILE * out;
+	document * set;
 } info;
 
 int handleIO(char * filename){
@@ -39,6 +45,23 @@ int closeFiles(){
 	return 0;
 }
 
+int init(){
+	int i = 0;
+	info.set = (document *) calloc(info.document, sizeof(document)*info.document);
+
+	for(; i < info.document; i++){
+		info.set[i].cabinet = i % info.cabinet;
+	}
+
+	/* test for initialization
+	i = 0;
+	for(; i < info.document; i++){
+		printf("doc %d, cab %d\n", i, info.set[i].cabinet);
+	}
+	*/
+	return 0;
+}
+
 int main(int argc, char** argv){
 	int retValue;
 	if(argc != 2 && argc != 3)
@@ -52,7 +75,9 @@ int main(int argc, char** argv){
 
 	if(argc == 3)
 		info.cabinet = atoi(argv[2]);
-	
+
+	init();
+
 	for(; fgets(line, LINE_SIZE, info.in) != NULL;) {
 		fprintf(info.out, "%s", line);
 	}
