@@ -7,39 +7,60 @@
 
 char line[LINE_SIZE];
 
-int main(int argc, char** argv){
-	FILE * in =  NULL, * out = NULL;
-	int cabinet = 0, document = 0, subject = 0;
-	char *outfile = alloca(strlen(argv[1]));
+struct {
+	int cabinet;
+	int document;
+	int subject;
+	FILE * in;
+	FILE * out;
+} info;
+
+int handleIO(char * filename){
+	char *outfile = alloca(strlen(filename));
+
+	if((info.in = fopen(filename, "r")) == NULL)
+		return -2;
+
+	outfile = strcat(strtok(strcpy(outfile, filename), "."), ".out");
 	
-	printf("%s\n", outfile);
+	if((info.out = fopen(outfile, "w")) == NULL)
+		return -3;
+
+	return 0;
+}
+
+int closeFiles(){
+	if(fclose(info.in) == EOF)
+		return -5;
+
+	if(fclose(info.out) == EOF)
+		return -6;
+
+	return 0;
+}
+
+int main(int argc, char** argv){
+	int retValue;
 	if(argc != 2 && argc != 3)
 		return -1;
 	
-	if((in = fopen(argv[1], "r")) == NULL)
-		return -2;
-	
-	strcpy(outfile, argv[1]);
-	outfile = strcat(strtok(outfile, "."), ".out");
-	
-	if((out = fopen(outfile, "w")) == NULL)
-		return -3;
+	if((retValue = handleIO(argv[1])) != 0)
+		return retValue;
 
-	if(fscanf(in, "%d\n %d\n %d\n", &cabinet, &document, &subject) != 3)
+	if(fscanf(info.in, "%d\n %d\n %d\n", &info.cabinet, &info.document, &info.subject) != 3)
 		return -4;
 
 	if(argc == 3)
-		cabinet = atoi(argv[2]);
+		info.cabinet = atoi(argv[2]);
 	
-	for(; fgets(line, LINE_SIZE, in) != NULL;) {
-		fprintf(out, "%s", line);
+	for(; fgets(line, LINE_SIZE, info.in) != NULL;) {
+		fprintf(info.out, "%s", line);
 	}
 
-	if(fclose(in) == EOF)
-		return -5;
+	printf("%d\n", info.cabinet);
 
-	if(fclose(out) == EOF)
-		return -6;
+	if((retValue = closeFiles()) != 0)
+		return retValue;
 
 	return 0;
 }
