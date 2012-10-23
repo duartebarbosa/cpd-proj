@@ -9,7 +9,7 @@ char line[LINE_SIZE];
 
 typedef struct {
 	int cabinet;
-	char * score;
+	double * score;
 } document;
 
 struct {
@@ -35,30 +35,49 @@ int handleIO(char * filename){
 	return 0;
 }
 
-int closeFiles(){
+int cleanup(){
 	if(fclose(info.in) == EOF)
 		return -5;
 
 	if(fclose(info.out) == EOF)
 		return -6;
 
+	free(info.set);
+
 	return 0;
 }
 
 int init(){
-	int i = 0;
+	int i = 0, id = 0;
+	char * token = NULL;
 	info.set = (document *) calloc(info.document, sizeof(document)*info.document);
 
 	for(; i < info.document; i++){
 		info.set[i].cabinet = i % info.cabinet;
+		info.set[i].score = (double *) calloc(info.subject, sizeof(double)*info.subject);
+	}
+	
+	for(; fgets(line, LINE_SIZE, info.in)!= NULL;) {
+		id = atoi(strtok(line, " "));
+		for(i = 0; i < info.subject && (token = strtok(NULL, " ")) != NULL; i++)
+			info.set[id].score[i] = atof(token);
+	}
+	
+	return 0;
+}
+
+int process(){
+
+
+	return 0;
+}
+
+int flushOutput(){
+	int i = 0;
+	for(; i < info.document; i++){
+		fprintf(info.out, "%d %d\n", i, info.set[i].cabinet);
 	}
 
-	/* test for initialization
-	i = 0;
-	for(; i < info.document; i++){
-		printf("doc %d, cab %d\n", i, info.set[i].cabinet);
-	}
-	*/
 	return 0;
 }
 
@@ -78,13 +97,11 @@ int main(int argc, char** argv){
 
 	init();
 
-	for(; fgets(line, LINE_SIZE, info.in) != NULL;) {
-		fprintf(info.out, "%s", line);
-	}
+	process();
 
-	printf("%d\n", info.cabinet);
+	flushOutput();
 
-	if((retValue = closeFiles()) != 0)
+	if((retValue = cleanup()) != 0)
 		return retValue;
 
 	return 0;
