@@ -5,8 +5,6 @@
 
 #define LINE_SIZE 128
 
-char line[LINE_SIZE];
-
 typedef struct {
 	int cabinet;
 	double * score;
@@ -49,7 +47,7 @@ int cleanup(){
 
 int init(){
 	int i = 0, id = 0;
-	char * token = NULL;
+	char * token = NULL, line[LINE_SIZE] = {0};
 	info.set = (document *) calloc(info.document, sizeof(document)*info.document);
 
 	for(; i < info.document; i++){
@@ -67,8 +65,14 @@ int init(){
 }
 
 int process(){
+	int i = 0, id = 0, tmp = 0;
 
-
+	for(; id < info.document; id++, i = 0, tmp = 0){
+		for(; i < info.subject; i++){
+			tmp += (info.set[id].score[i] - info.set[id].cabinet)*(info.set[id].score[i] - info.set[id].cabinet);
+		}
+		info.set[id].cabinet = tmp % info.cabinet;
+	}
 	return 0;
 }
 
