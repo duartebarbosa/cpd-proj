@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <alloca.h>
 
-#define LINE_SIZE 128
+#define LINE_SIZE 512
 
 typedef struct {
 	int cabinet;
@@ -64,14 +64,42 @@ int init(){
 	return 0;
 }
 
-int process(){
-	int i = 0, id = 0, tmp = 0;
-
-	for(; id < info.document; id++, i = 0, tmp = 0){
-		for(; i < info.subject; i++){
-			tmp += (info.set[id].score[i] - info.set[id].cabinet)*(info.set[id].score[i] - info.set[id].cabinet);
+int minimum(double distance[]){
+	int i = 0, cabinet = 0; double min = distance[0];
+	for(; i < info.cabinet; i++){
+		if(min > distance[i]){
+			min = distance[i];
+			cabinet = i;
 		}
-		info.set[id].cabinet = tmp % info.cabinet;
+	}
+	return cabinet;
+}
+
+int process(){
+	int tmp = 0, i = 0, id = 0, cabinet = 0; double distance[info.cabinet];
+	double centroid[info.cabinet][info.subject]; /* centroid of the cabinet */
+	for(i= 0, id = 0; id < info.document; id++, i = 0){
+		for(; i < info.subject; i++){
+			centroid[info.set[id].cabinet][i] += info.set[id].score[i];
+		}
+	}
+
+	for(i= 0,id = 0; id < info.cabinet; id++, i = 0){
+		for(; i < info.subject; i++){
+			centroid[id][i] /= info.subject;
+		}
+	}
+
+	for(i = 0, id = 0; id < info.document; id++, cabinet = 0){
+		for(; cabinet < info.cabinet; cabinet++, i = 0){
+			for(; i < info.subject; i++){
+				distance[cabinet] += (info.set[id].score[i] - centroid[cabinet][i])*(info.set[id].score[i] - centroid[cabinet][i]);
+			}
+		}
+		info.set[id].cabinet = minimum(distance);
+		for(cabinet = 0; cabinet < info.cabinet; cabinet++){
+			distance[cabinet] = 0;
+		}
 	}
 	return 0;
 }
@@ -81,7 +109,6 @@ int flushOutput(){
 	for(; i < info.document; i++){
 		fprintf(info.out, "%d %d\n", i, info.set[i].cabinet);
 	}
-
 	return 0;
 }
 

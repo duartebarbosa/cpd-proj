@@ -1,5 +1,5 @@
 CC = gcc
-FLAGS = -ansi -Wall -pedantic
+FLAGS = -ansi -Wall -pedantic -std=c99 
 GOODFLAGS = -O2 -march=native
 
 docs_serial: docs-serial.c
