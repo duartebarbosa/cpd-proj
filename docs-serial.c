@@ -7,7 +7,7 @@
 
 typedef struct {
 	int cabinet;
-	double * score;
+	float * score;
 } document;
 
 struct {
@@ -34,11 +34,16 @@ int handleIO(char * filename){
 }
 
 int cleanup(){
+	int doc = 0;
 	if(fclose(info.in) == EOF)
 		return -5;
 
 	if(fclose(info.out) == EOF)
 		return -6;
+
+	for(; doc < info.document; doc++){
+		free(info.set[doc].score);
+	}
 
 	free(info.set);
 
@@ -52,7 +57,7 @@ int init(){
 
 	for(; sub < info.document; sub++){
 		info.set[sub].cabinet = sub % info.cabinet;
-		info.set[sub].score = (double *) calloc(info.subject, sizeof(double));
+		info.set[sub].score = (float *) calloc(info.subject, sizeof(float));
 	}
 	
 	for(; fgets(line, LINE_SIZE, info.in)!= NULL;) {
@@ -64,44 +69,65 @@ int init(){
 	return 0;
 }
 
-int minimum(double distance[]){
-	int sub = 0, cabinet = 0; double min = distance[0];
-	for(; sub < info.cabinet; sub++){
-		if(min > distance[sub]){
-			min = distance[sub];
-			cabinet = sub;
+int minimum(float distance[]){
+	int cab = 0, result = 0;
+	float min = distance[0];
+
+	for(; cab < info.cabinet; cab++){
+		if(min > distance[cab]){
+			min = distance[cab];
+			result = cab;
 		}
+		printf("\tresult: %d, cab: %d, min: %f, distance[cab]: %f\n", result, cab, min, distance[cab]);
 	}
-	return cabinet;
+	return result;
 }
 
 int process(){
-	int sub = 0, doc = 0, cabinet = 0;
-	double distance[info.cabinet] /* distance from specific doc to cabinet */, centroid[info.cabinet][info.subject]; /* centroid of the cabinet */
-
-	/* centroid - average for each cabinet and subject */
-	for(; doc < info.document; doc++){
-		for(sub = 0; sub < info.subject; sub++){
-			centroid[info.set[doc].cabinet][sub] += info.set[doc].score[sub];
-		}
-	}
-	for(doc = 0; doc < info.document; doc++){
-		for(sub = 0; sub < info.subject; sub++){
-			centroid[info.set[doc].cabinet][sub] /= info.subject;
-		}
-	}
-
-	/* calculate distance between cab and doc */
-	for(sub = 0, doc = 0; doc < info.document; doc++, cabinet = 0){
-		for(; cabinet < info.cabinet; cabinet++, sub = 0){
-			for(; sub < info.subject; sub++){
-				distance[cabinet] += (info.set[doc].score[sub] - centroid[cabinet][sub])*(info.set[doc].score[sub] - centroid[cabinet][sub]);
+	int i = 0,sub = 0, doc = 0, cab = 0;
+	float distance[info.cabinet] /* distance from specific doc to cabinet */, centroid[info.cabinet][info.subject]; /* centroid of the cabinet */
+	while(i < info.cabinet){
+		printf("i: %d\n", i);
+		/* centroid - average for each cabinet and subject */
+		for(doc = 0; doc < info.document; doc++){
+			for(sub = 0; sub < info.subject; sub++){
+				centroid[info.set[doc].cabinet][sub] += info.set[doc].score[sub];
 			}
 		}
-		info.set[doc].cabinet = minimum(distance);
-		for(cabinet = 0; cabinet < info.cabinet; cabinet++){
-			distance[cabinet] = 0;
+		for(cab = 0; cab < info.cabinet; cab++){
+			for(sub = 0; sub < info.subject; sub++){
+				centroid[cab][sub] /= info.subject; /* actually compute the average */
+			}
 		}
+
+		/* calculate distance between cab and doc */
+		for(doc = 0, sub = 0; doc < info.document; doc++){
+			for(cab = 0; cab < info.cabinet; cab++){
+				for(sub = 0; sub < info.subject; sub++){
+					distance[cab] += (info.set[doc].score[sub] - centroid[cab][sub])*(info.set[doc].score[sub] - centroid[cab][sub]);
+				}
+			}
+			printf("doc: %d\n", doc);
+			info.set[doc].cabinet = minimum(distance);
+			for(cab = 0; cab < info.cabinet; cab++){
+				distance[cab] = 0;
+			}
+		}
+
+		for(cab = 0; cab < info.cabinet; cab++){
+			printf("\tcab: %d\n", cab);
+			for(sub = 0; sub < info.subject; sub++){
+				printf("\t\tsub: %d, centroid: %f\n", sub, centroid[cab][sub]);
+			}
+		}
+
+		for(cab = 0; cab < info.cabinet; cab++){
+			for(sub = 0; sub < info.subject; sub++){
+				centroid[cab][sub] = 0; /* re-initialize centroid */
+			}
+		}
+
+	i++;
 	}
 	return 0;
 }
@@ -131,6 +157,7 @@ int main(int argc, char** argv){
 	init();
 
 	process();
+
 
 	flushOutput();
 
