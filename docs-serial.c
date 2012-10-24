@@ -46,57 +46,59 @@ int cleanup(){
 }
 
 int init(){
-	int i = 0, id = 0;
+	int sub = 0, doc = 0;
 	char * token = NULL, line[LINE_SIZE] = {0};
-	info.set = (document *) calloc(info.document, sizeof(document)*info.document);
+	info.set = (document *) calloc(info.document, sizeof(document));
 
-	for(; i < info.document; i++){
-		info.set[i].cabinet = i % info.cabinet;
-		info.set[i].score = (double *) calloc(info.subject, sizeof(double)*info.subject);
+	for(; sub < info.document; sub++){
+		info.set[sub].cabinet = sub % info.cabinet;
+		info.set[sub].score = (double *) calloc(info.subject, sizeof(double));
 	}
 	
 	for(; fgets(line, LINE_SIZE, info.in)!= NULL;) {
-		id = atoi(strtok(line, " "));
-		for(i = 0; i < info.subject && (token = strtok(NULL, " ")) != NULL; i++)
-			info.set[id].score[i] = atof(token);
+		doc = atoi(strtok(line, " "));
+		for(sub = 0; sub < info.subject && (token = strtok(NULL, " ")) != NULL; sub++)
+			info.set[doc].score[sub] = atof(token);
 	}
 	
 	return 0;
 }
 
 int minimum(double distance[]){
-	int i = 0, cabinet = 0; double min = distance[0];
-	for(; i < info.cabinet; i++){
-		if(min > distance[i]){
-			min = distance[i];
-			cabinet = i;
+	int sub = 0, cabinet = 0; double min = distance[0];
+	for(; sub < info.cabinet; sub++){
+		if(min > distance[sub]){
+			min = distance[sub];
+			cabinet = sub;
 		}
 	}
 	return cabinet;
 }
 
 int process(){
-	int tmp = 0, i = 0, id = 0, cabinet = 0; double distance[info.cabinet];
-	double centroid[info.cabinet][info.subject]; /* centroid of the cabinet */
-	for(i= 0, id = 0; id < info.document; id++, i = 0){
-		for(; i < info.subject; i++){
-			centroid[info.set[id].cabinet][i] += info.set[id].score[i];
+	int sub = 0, doc = 0, cabinet = 0;
+	double distance[info.cabinet] /* distance from specific doc to cabinet */, centroid[info.cabinet][info.subject]; /* centroid of the cabinet */
+
+	/* centroid - average for each cabinet and subject */
+	for(; doc < info.document; doc++){
+		for(sub = 0; sub < info.subject; sub++){
+			centroid[info.set[doc].cabinet][sub] += info.set[doc].score[sub];
+		}
+	}
+	for(doc = 0; doc < info.document; doc++){
+		for(sub = 0; sub < info.subject; sub++){
+			centroid[info.set[doc].cabinet][sub] /= info.subject;
 		}
 	}
 
-	for(i= 0,id = 0; id < info.cabinet; id++, i = 0){
-		for(; i < info.subject; i++){
-			centroid[id][i] /= info.subject;
-		}
-	}
-
-	for(i = 0, id = 0; id < info.document; id++, cabinet = 0){
-		for(; cabinet < info.cabinet; cabinet++, i = 0){
-			for(; i < info.subject; i++){
-				distance[cabinet] += (info.set[id].score[i] - centroid[cabinet][i])*(info.set[id].score[i] - centroid[cabinet][i]);
+	/* calculate distance between cab and doc */
+	for(sub = 0, doc = 0; doc < info.document; doc++, cabinet = 0){
+		for(; cabinet < info.cabinet; cabinet++, sub = 0){
+			for(; sub < info.subject; sub++){
+				distance[cabinet] += (info.set[doc].score[sub] - centroid[cabinet][sub])*(info.set[doc].score[sub] - centroid[cabinet][sub]);
 			}
 		}
-		info.set[id].cabinet = minimum(distance);
+		info.set[doc].cabinet = minimum(distance);
 		for(cabinet = 0; cabinet < info.cabinet; cabinet++){
 			distance[cabinet] = 0;
 		}
@@ -105,9 +107,9 @@ int process(){
 }
 
 int flushOutput(){
-	int i = 0;
-	for(; i < info.document; i++){
-		fprintf(info.out, "%d %d\n", i, info.set[i].cabinet);
+	int sub = 0;
+	for(; sub < info.document; sub++){
+		fprintf(info.out, "%d %d\n", sub, info.set[sub].cabinet);
 	}
 	return 0;
 }
