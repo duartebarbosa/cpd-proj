@@ -96,20 +96,7 @@ int process(){
 		}
 		for(cab = 0; cab < info.cabinet; cab++){
 			for(sub = 0; sub < info.subject; sub++){
-
-				/**
-				 * FIXME
-				 *
-				 * Para cada cabinet c e subject s, estamos a obter centroid[c][s]
-				 * dividindo o somatório dos score[s] dos documents que estão nesse
-				 * cabinet pelo número de subjects total no problema. Ora, isso
-				 * assim não é um cálculo de média / centro de massa / whatever. O
-				 * que se quer é dividir o somatório pela quantidade de elementos
-				 * somados, i.e., dividir pelo número de documents contidos em c.
-				 * Certo? Ou estou a delirar?
-				 */
-
-				centroid[cab][sub] /= info.subject; /* actually compute the average */
+				centroid[cab][sub] /= info.document; /* actually compute the average */
 			}
 		}
 
