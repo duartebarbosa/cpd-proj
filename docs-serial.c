@@ -1,9 +1,11 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <alloca.h>
+#include <string.h>
 
 #define LINE_SIZE 512
+#define CENTROID(x,y) centroid[(x) + (y) * info.cabinet]
+#define QUAD(x) (x)*(x)
 
 typedef struct {
 	int cabinet;
@@ -34,43 +36,44 @@ int handleIO(char * filename){
 }
 
 int cleanup(){
-	int doc = 0;
-	if(fclose(info.in) == EOF)
-		return -5;
-
-	if(fclose(info.out) == EOF)
-		return -6;
-
+	register int doc = 0;
 	for(; doc < info.document; doc++){
 		free(info.set[doc].score);
 	}
 
 	free(info.set);
 
+	if(fclose(info.in) == EOF)
+		return -5;
+
+	if(fclose(info.out) == EOF)
+		return -6;
+
+
 	return 0;
 }
 
 int init(){
-	int sub = 0, doc = 0;
+	register int sub = 0, id = 0;
 	char * token = NULL, line[LINE_SIZE] = {0};
 	info.set = (document *) calloc(info.document, sizeof(document));
 
-	for(; sub < info.document; sub++){
-		info.set[sub].cabinet = sub % info.cabinet;
-		info.set[sub].score = (float *) calloc(info.subject, sizeof(float));
+	for(; id < info.document; id++){
+		info.set[id].cabinet = id % info.cabinet;
+		info.set[id].score = (float *) calloc(info.subject, sizeof(float));
 	}
 	
-	for(; fgets(line, LINE_SIZE, info.in)!= NULL;) {
-		doc = atoi(strtok(line, " "));
+	while(fgets(line, LINE_SIZE, info.in)!= NULL){
+		id = atoi(strtok(line, " "));
 		for(sub = 0; sub < info.subject && (token = strtok(NULL, " ")) != NULL; sub++)
-			info.set[doc].score[sub] = atof(token);
+			info.set[id].score[sub] = atof(token);
 	}
 	
 	return 0;
 }
 
 int minimum(float distance[]){
-	int cab = 0, result = 0;
+	register int cab = 0, result = 0;
 	float min = distance[0];
 
 	for(; cab < info.cabinet; cab++){
@@ -78,64 +81,60 @@ int minimum(float distance[]){
 			min = distance[cab];
 			result = cab;
 		}
-		printf("\tresult: %d, cab: %d, min: %f, distance[cab]: %f\n", result, cab, min, distance[cab]);
 	}
 	return result;
 }
 
 int process(){
-	int i = 0,sub = 0, doc = 0, cab = 0;
-	float distance[info.cabinet] /* distance from specific doc to cabinet */, centroid[info.cabinet][info.subject]; /* centroid of the cabinet */
-	while(i < info.cabinet){
-		printf("i: %d\n", i);
+	register int sub = 0, doc = 0, cab = 0, tmp = 0, flag = 1;
+	int *docPerCab = calloc(info.cabinet, sizeof(int)); 			/* docPerCab[info.cabinet] */
+	float *distance = calloc(info.cabinet, sizeof(float)); 			/* distance[info.cabinet] - distance from specific doc to cabinet */
+	float *centroid = malloc(info.cabinet*info.subject*sizeof(float));	/* centroid[info.cabinet][info.subject] - centroid of the cabinet */
+
+	while(flag){
+		flag = 0;
+		for(cab = 0; cab < info.cabinet; cab++){
+			docPerCab[cab] = 0;
+			for(sub = 0; sub < info.subject; sub++)
+				CENTROID(cab, sub) = 0;
+		}
+		
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
-			for(sub = 0; sub < info.subject; sub++){
-				centroid[info.set[doc].cabinet][sub] += info.set[doc].score[sub];
-			}
+			for(sub = 0; sub < info.subject; sub++)
+				CENTROID(info.set[doc].cabinet, sub) += info.set[doc].score[sub];
+			docPerCab[info.set[doc].cabinet]++;
 		}
 		for(cab = 0; cab < info.cabinet; cab++){
-			for(sub = 0; sub < info.subject; sub++){
-				centroid[cab][sub] /= info.document; /* actually compute the average */
-			}
+			for(sub = 0; sub < info.subject; sub++)
+				CENTROID(cab, sub) /= docPerCab[cab]; /* actually compute the average */
 		}
 
-		/* calculate distance between cab and doc */
+		/* calculate distance between cab and doc; set the new cabinet */
 		for(doc = 0, sub = 0; doc < info.document; doc++){
 			for(cab = 0; cab < info.cabinet; cab++){
-				for(sub = 0; sub < info.subject; sub++){
-					distance[cab] += (info.set[doc].score[sub] - centroid[cab][sub])*(info.set[doc].score[sub] - centroid[cab][sub]);
-				}
-			}
-			printf("doc: %d\n", doc);
-			info.set[doc].cabinet = minimum(distance);
-			for(cab = 0; cab < info.cabinet; cab++){
 				distance[cab] = 0;
+				for(sub = 0; sub < info.subject; sub++)
+					distance[cab] += QUAD(info.set[doc].score[sub] - CENTROID(cab, sub));
 			}
+			tmp = info.set[doc].cabinet;
+			info.set[doc].cabinet = minimum(distance);
+			if(tmp != info.set[doc].cabinet)
+				flag = 1;
 		}
-
-		for(cab = 0; cab < info.cabinet; cab++){
-			printf("\tcab: %d\n", cab);
-			for(sub = 0; sub < info.subject; sub++){
-				printf("\t\tsub: %d, centroid: %f\n", sub, centroid[cab][sub]);
-			}
-		}
-
-		for(cab = 0; cab < info.cabinet; cab++){
-			for(sub = 0; sub < info.subject; sub++){
-				centroid[cab][sub] = 0; /* re-initialize centroid */
-			}
-		}
-
-	i++;
 	}
+	
+	free(docPerCab);
+	free(distance);
+	free(centroid);
+	
 	return 0;
 }
 
 int flushOutput(){
-	int sub = 0;
-	for(; sub < info.document; sub++){
-		fprintf(info.out, "%d %d\n", sub, info.set[sub].cabinet);
+	register int doc = 0;
+	for(; doc < info.document; doc++){
+		fprintf(info.out, "%d %d\n", doc, info.set[doc].cabinet);
 	}
 	return 0;
 }
@@ -157,7 +156,6 @@ int main(int argc, char** argv){
 	init();
 
 	process();
-
 
 	flushOutput();
 

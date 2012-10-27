@@ -1,9 +1,9 @@
 CC = gcc
-FLAGS = -ansi -Wall -pedantic -std=c99 
+DEBUGFLAGS = -ansi -Wall -pedantic
 GOODFLAGS = -O2 -march=native
 
 docs_serial: docs-serial.c
-	$(CC) $(FLAGS) docs-serial.c -g -o docs-serial
+	$(CC) $(GOODFLAGS) docs-serial.c -g -o docs-serial
 
 all: clean docs_serial
 
