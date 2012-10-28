@@ -1,16 +1,19 @@
 CC = gcc
-DEBUGFLAGS = -ansi -Wall -pedantic
+DEBUGFLAGS = -ansi -Wall -pedantic -g
 GOODFLAGS = -O2 -march=native
 
 docs_serial: docs-serial.c
-	$(CC) $(GOODFLAGS) docs-serial.c -g -o docs-serial
+	$(CC) $(GOODFLAGS) docs-serial.c -o docs-serial
 
-all: clean docs_serial
+docs_omp: docs-omp.c
+	$(CC) $(DEBUGFLAGS) -fopenmp docs-omp.c -o docs-omp
+
+all: clean docs_serial docs-omp
 
 backup: clean zip
 
 clean:
-	rm -f docs-serial *.o
+	rm -f docs-serial docs-omp *.o
 
 zip:
 	@-tar -czf docs.tgz Makefile *.c
