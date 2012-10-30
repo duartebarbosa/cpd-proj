@@ -93,11 +93,8 @@ int process(){
 
 	while(flag){
 		flag = 0;
-		for(cab = 0; cab < info.cabinet; cab++){
-			docPerCab[cab] = 0;
-			for(sub = 0; sub < info.subject; sub++)
-				CENTROID(cab, sub) = 0;
-		}
+		memset(docPerCab, 0, info.cabinet * sizeof(int));
+		memset(centroid, 0, info.cabinet * info.subject * sizeof(float));
 		
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
@@ -112,8 +109,8 @@ int process(){
 
 		/* calculate distance between cab and doc; set the new cabinet */
 		for(doc = 0, sub = 0; doc < info.document; doc++){
+			memset(distance, 0, info.cabinet * sizeof(float));
 			for(cab = 0; cab < info.cabinet; cab++){
-				distance[cab] = 0;
 				for(sub = 0; sub < info.subject; sub++)
 					distance[cab] += QUAD(info.set[doc].score[sub] - CENTROID(cab, sub));
 			}

@@ -39,10 +39,8 @@ int handleIO(char * filename){
 int cleanup(){
 	register int doc;
 
-	#pragma omp parallel for
-	for(doc = 0; doc < info.document; doc++){
+	for(doc = 0; doc < info.document; doc++)
 		free(info.set[doc].score);
-	}
 
 	free(info.set);
 
@@ -96,18 +94,16 @@ int process(){
 
 	while(flag){
 		flag = 0;
+		memset(docPerCab, 0, info.cabinet * sizeof(int));
+		memset(centroid, 0, info.cabinet * info.subject * sizeof(float));
 
-		for(cab = 0; cab < info.cabinet; cab++){
-			docPerCab[cab] = 0;
-			#pragma omp parallel for
-			for(sub = 0; sub < info.subject; sub++)
-				CENTROID(cab, sub) = 0;
-		}
-		
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
-			for(sub = 0; sub < info.subject; sub++)
+			for(sub = 0; sub < info.subject; sub++){
 				CENTROID(info.set[doc].cabinet, sub) += info.set[doc].score[sub];
+			}
+		}
+		for(doc = 0; doc < info.document; doc++){
 			docPerCab[info.set[doc].cabinet]++;
 		}
 
@@ -119,8 +115,8 @@ int process(){
 
 		/* calculate distance between cab and doc; set the new cabinet */
 		for(doc = 0, sub = 0; doc < info.document; doc++){
+			memset(distance, 0, info.cabinet * sizeof(float));
 			for(cab = 0; cab < info.cabinet; cab++){
-				distance[cab] = 0;
 				for(sub = 0; sub < info.subject; sub++)
 					distance[cab] += QUAD(info.set[doc].score[sub] - CENTROID(cab, sub));
 			}
@@ -131,11 +127,8 @@ int process(){
 		}
 	}
 
-	#pragma omp task	
 	free(docPerCab);
-	#pragma omp task
 	free(distance);
-	#pragma omp task
 	free(centroid);
 	
 	return 0;

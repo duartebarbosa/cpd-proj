@@ -6,7 +6,7 @@ docs_serial: docs-serial.c
 	$(CC) $(GOODFLAGS) docs-serial.c -o docs-serial
 
 docs_omp: docs-omp.c
-	$(CC) $(DEBUGFLAGS) -fopenmp docs-omp.c -o docs-omp
+	$(CC) $(GOODFLAGS) -fopenmp docs-omp.c -o docs-omp
 
 all: clean docs_serial docs-omp
 
