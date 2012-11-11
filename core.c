@@ -42,6 +42,9 @@ int init(){
 		info.set[id].score = (float *) calloc(info.subject, sizeof(float));
 	}
 	
+	for(id = 0; id < info.document; id++){
+		info.set[id].cabinet = id % info.cabinet;
+	}
 	while(fgets(line, LINE_SIZE, info.in)!= NULL){
 		id = atoi(strtok(line, " "));
 		for(sub = 0; sub < info.subject && (token = strtok(NULL, " ")) != NULL; sub++)
@@ -50,8 +53,6 @@ int init(){
 	
 	return 0;
 }
-
-inline int minimum(float distance[]);
 
 int process();
 
