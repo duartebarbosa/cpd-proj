@@ -3,18 +3,19 @@
 #include <alloca.h>
 #include <string.h>
 #include <math.h>
+#include <omp.h>
 #include "core.c"
 
 int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	int *docPerCab = calloc(info.cabinet, sizeof(int)); 			/* docPerCab[cabinet] */
-	float *centroid = malloc(info.cabinet*info.subject*sizeof(float));	/* centroid[cabinet][subject] - centroid of the cabinet */
-	float aux, distance;
+	double *centroid = malloc(info.cabinet*info.subject*sizeof(double));	/* centroid[cabinet][subject] - centroid of the cabinet */
+	double aux, distance;
 
 	while(flag){
 		flag = 0;
 		memset(docPerCab, 0, info.cabinet * sizeof(int));
-		memset(centroid, 0, info.cabinet * info.subject * sizeof(float));
+		memset(centroid, 0, info.cabinet * info.subject * sizeof(double));
 
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
@@ -38,7 +39,7 @@ int process(){
 			for(cab = 0; cab < info.cabinet; cab++){
 				distance = 0;
 				for(sub = 0; sub < info.subject; sub++){
-					distance += pow(info.set[doc].score[sub] - CENTROID(cab, sub), 2);
+					distance += QUAD(info.set[doc].score[sub] - CENTROID(cab, sub));
 				}
 				if(distance < aux){
 					tmp = cab;

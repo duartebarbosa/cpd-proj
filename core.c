@@ -1,11 +1,11 @@
-#define LINE_SIZE 512
+#define LINE_SIZE 1024
 #define CENTROID(x,y) centroid[(x) + (y) * info.cabinet]
 #define QUAD(x) (x)*(x)
 
 typedef struct {
 	int cabinet;
-	float * score;
-} document;
+	double * score;
+} document_t;
 
 struct {
 	int cabinet;
@@ -13,7 +13,7 @@ struct {
 	int subject;
 	FILE * in;
 	FILE * out;
-	document * set;
+	document_t * set;
 } info;
 
 int cleanup(){
@@ -35,16 +35,13 @@ int cleanup(){
 int init(){
 	register int sub, id;
 	char * token = NULL, line[LINE_SIZE] = {0};
-	info.set = (document *) calloc(info.document, sizeof(document));
+	info.set = (document_t *) calloc(info.document, sizeof(document_t));
 
 	for(id = 0; id < info.document; id++){
 		info.set[id].cabinet = id % info.cabinet;
-		info.set[id].score = (float *) calloc(info.subject, sizeof(float));
+		info.set[id].score = (double *) calloc(info.subject, sizeof(double));
 	}
 	
-	for(id = 0; id < info.document; id++){
-		info.set[id].cabinet = id % info.cabinet;
-	}
 	while(fgets(line, LINE_SIZE, info.in)!= NULL){
 		id = atoi(strtok(line, " "));
 		for(sub = 0; sub < info.subject && (token = strtok(NULL, " ")) != NULL; sub++)
@@ -79,6 +76,8 @@ int flushOutput(){
 
 int main(int argc, char** argv){
 	int retValue;
+	double start = omp_get_wtime();
+
 	if(argc != 2 && argc != 3)
 		return -1;
 	
@@ -99,6 +98,8 @@ int main(int argc, char** argv){
 
 	if((retValue = cleanup()) != 0)
 		return retValue;
+
+	printf("OpenMP time: %fs\n", omp_get_wtime() - start);
 
 	return 0;
 }
