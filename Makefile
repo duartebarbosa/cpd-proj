@@ -4,11 +4,11 @@ GOODFLAGS = -O3 -march=native
 
 all: clean docs_serial docs_omp
 
-docs_serial: docs-serial.c core.c
+docs_serial: docs-serial.c
 	$(CC) $(GOODFLAGS) -fopenmp docs-serial.c -o docs-serial
 
-docs_omp: docs-omp.c core.c
-	$(CC) $(GOODFLAGS) -g -fopenmp docs-omp.c -lm -o docs-omp
+docs_omp: docs-omp.c
+	$(CC) $(GOODFLAGS) -fopenmp docs-omp.c -o docs-omp
 
 backup: clean zip
 

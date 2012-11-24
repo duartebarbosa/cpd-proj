@@ -9,45 +9,65 @@
 #define CENTROID(x,y) centroid[(x) + (y) * info.cabinet]
 #define QUAD(x) (x)*(x)
 
-typedef struct {
-	int cabinet;
-	float * score;
-} document;
-
 struct {
 	int cabinet;
 	int document;
 	int subject;
-	FILE * in;
-	FILE * out;
-	document * set;
+	int *cabinets;
+	double **score;
+	FILE *in;
+	FILE *out;
 } info;
 
-inline int minimum(float distance[]){
-	register int cab = 0, index = 0;
+int handleIO(char * filename){
+	char *outfile = alloca(strlen(filename));
+	outfile = strcat(strtok(strcpy(outfile, filename), "."), ".out");
+	
+	if((info.in = fopen(filename, "r")) == NULL)
+		return -2;
+	
+	if((info.out = fopen(outfile, "w")) == NULL)
+		return -3;
 
-	for(; cab < info.cabinet; cab++)
-		if(distance[index] > distance[cab])
-			index = cab;
-
-	return index;
+	return 0;
 }
+
+int init(){
+	register int sub, doc;
+	char * token = NULL, line[LINE_SIZE] = {0};
+	info.score = (double **) calloc(info.document, sizeof(double*));
+	info.cabinets = (int *) calloc(info.document, sizeof(int));
+
+	for(doc = 0; doc < info.document; doc++){
+		info.cabinets[doc] = doc % info.cabinet;
+		info.score[doc] = (double *) calloc(info.subject, sizeof(double));
+	}
+
+	while(fgets(line, LINE_SIZE, info.in)!= NULL){
+		doc = atoi(strtok(line, " "));
+		for(sub = 0; sub < info.subject && (token = strtok(NULL, " ")) != NULL; sub++)
+			info.score[doc][sub] = atof(token);
+	}
+	
+	return 0;
+}
+
 
 int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	register double distance, aux;
 	int *docPerCab = calloc(info.cabinet, sizeof(int)); 			/* docPerCab[cabinet] */
-	float *centroid = malloc(info.cabinet*info.subject*sizeof(float));	/* centroid[cabinet][subject] - centroid of the cabinet */
+	double *centroid = malloc(info.cabinet*info.subject*sizeof(double));	/* centroid[cabinet][subject] - centroid of the cabinet */
 
 	while(flag){
 		memset(docPerCab, 0, info.cabinet * sizeof(int));
-		memset(centroid, 0, info.cabinet * info.subject * sizeof(float));
+		memset(centroid, 0, info.cabinet * info.subject * sizeof(double));
 		
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
 			for(sub = 0; sub < info.subject; sub++)
-				CENTROID(info.set[doc].cabinet, sub) += info.set[doc].score[sub];
-			docPerCab[info.set[doc].cabinet]++;
+				CENTROID(info.cabinets[doc], sub) += info.score[doc][sub];
+			docPerCab[info.cabinets[doc]]++;
 		}
 		for(cab = 0; cab < info.cabinet; cab++){
 			for(sub = 0; sub < info.subject; sub++)
@@ -60,14 +80,14 @@ int process(){
 			for(cab = 0; cab < info.cabinet; cab++){
 				distance = 0;
 				for(sub = 0; sub < info.subject; sub++)
-					distance += QUAD(info.set[doc].score[sub] - CENTROID(cab, sub));
+					distance += QUAD(info.score[doc][sub] - CENTROID(cab, sub));
 				if(distance < aux){
 					tmp = cab;
 					aux = distance;
 				}
 			}
-			if(info.set[doc].cabinet != tmp){
-				info.set[doc].cabinet = tmp;
+			if(info.cabinets[doc] != tmp){
+				info.cabinets[doc] = tmp;
 				flag = 1;
 			}
 		}
@@ -83,9 +103,9 @@ int cleanup(){
 	register int doc = 0;
 
 	for(; doc < info.document; doc++)
-		free(info.set[doc].score);
+		free(info.score[doc]);
 
-	free(info.set);
+	free(info.cabinets);
 
 	if(fclose(info.in) == EOF)
 		return -5;
@@ -95,48 +115,17 @@ int cleanup(){
 	return 0;
 }
 
-int init(){
-	register int sub, doc;
-	char * token = NULL, line[LINE_SIZE] = {0};
-	info.set = (document *) calloc(info.document, sizeof(document));
-
-	for(doc = 0; doc < info.document; doc++){
-		info.set[doc].cabinet = doc % info.cabinet;
-		info.set[doc].score = (float *) calloc(info.subject, sizeof(float));
-	}
-	
-	while(fgets(line, LINE_SIZE, info.in)!= NULL){
-		doc = atoi(strtok(line, " "));
-		for(sub = 0; sub < info.subject && (token = strtok(NULL, " ")) != NULL; sub++)
-			info.set[doc].score[sub] = atof(token);
-	}
-	
-	return 0;
-}
-
-int handleIO(char * filename){
-	char *outfile = alloca(strlen(filename));
-	outfile = strcat(strtok(strcpy(outfile, filename), "."), ".out");
-	
-	if((info.in = fopen(filename, "r")) == NULL)
-		return -2;
-	
-	if((info.out = fopen(outfile, "w")) == NULL)
-		return -3;
-
-	return 0;
-}
-
 int flushOutput(){
 	register int doc = 0;
 	for(; doc < info.document; doc++){
-		fprintf(info.out, "%d %d\n", doc, info.set[doc].cabinet);
+		fprintf(info.out, "%d %d\n", doc, info.cabinets[doc]);
 	}
 	return 0;
 }
 
 int main(int argc, char** argv){
 	int retValue;
+	double start = omp_get_wtime();
 	if(argc != 2 && argc != 3)
 		return -1;
 	
@@ -157,6 +146,8 @@ int main(int argc, char** argv){
 
 	if((retValue = cleanup()) != 0)
 		return retValue;
+
+	printf("OpenMP time: %fs\n", omp_get_wtime() - start);
 
 	return 0;
 }
