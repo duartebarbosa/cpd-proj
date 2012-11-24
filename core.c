@@ -42,7 +42,8 @@ int init(){
 		info.set[id].score = (double *) calloc(info.subject, sizeof(double));
 	}
 	
-	while(fgets(line, LINE_SIZE, info.in)!= NULL){
+	#pragma omp parallel private(sub)
+	for(;fgets(line, LINE_SIZE, info.in)!= NULL;){
 		id = atoi(strtok(line, " "));
 		for(sub = 0; sub < info.subject && (token = strtok(NULL, " ")) != NULL; sub++)
 			info.set[id].score[sub] = atof(token);
