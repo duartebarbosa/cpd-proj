@@ -6,7 +6,6 @@
 #include <omp.h>
 
 #define LINE_SIZE 1024
-#define CENTROID(x,y) centroid[(x) + (y) * info.cabinet]
 #define QUAD(x) (x)*(x)
 
 struct {
@@ -57,21 +56,26 @@ int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	register double distance, aux;
 	int *docPerCab = calloc(info.cabinet, sizeof(int)); 			/* docPerCab[cabinet] */
-	double *centroid = malloc(info.cabinet*info.subject*sizeof(double));	/* centroid[cabinet][subject] - centroid of the cabinet */
+	double **centroid = calloc(info.subject, sizeof(double*));	/* centroid[cabinet][subject] - centroid of the cabinet */
+
+	for(sub = 0; sub < info.subject; sub++)
+		centroid[sub] = calloc(info.cabinet, sizeof(double));
 
 	while(flag){
 		memset(docPerCab, 0, info.cabinet * sizeof(int));
-		memset(centroid, 0, info.cabinet * info.subject * sizeof(double));
+
+		for(sub = 0; sub < info.subject; sub++)
+			memset(centroid[sub], 0, info.subject * sizeof(double));
 		
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
 			for(sub = 0; sub < info.subject; sub++)
-				CENTROID(info.cabinets[doc], sub) += info.score[doc][sub];
+				centroid[sub][info.cabinets[doc]] += info.score[doc][sub];
 			docPerCab[info.cabinets[doc]]++;
 		}
-		for(cab = 0; cab < info.cabinet; cab++){
-			for(sub = 0; sub < info.subject; sub++)
-				CENTROID(cab, sub) /= docPerCab[cab]; 		/* actually compute the average */
+		for(sub = 0; sub < info.subject; sub++)
+			for(cab = 0; cab < info.cabinet; cab++){
+				centroid[sub][cab] /= docPerCab[cab]; 		/* actually compute the average */
 		}
 
 		/* calculate distance between cab and doc; set the new cabinet */
@@ -80,7 +84,7 @@ int process(){
 			for(cab = 0; cab < info.cabinet; cab++){
 				distance = 0;
 				for(sub = 0; sub < info.subject; sub++)
-					distance += QUAD(info.score[doc][sub] - CENTROID(cab, sub));
+					distance += QUAD(info.score[doc][sub] - centroid[sub][cab]);
 				if(distance < aux){
 					tmp = cab;
 					aux = distance;
@@ -94,8 +98,7 @@ int process(){
 	}
 	
 	free(docPerCab);
-	free(centroid);
-	
+		
 	return 0;
 }
 
