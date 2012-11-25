@@ -55,7 +55,7 @@ int init(){
 int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	register double distance, aux;
-	int *docPerCab = calloc(info.cabinet, sizeof(int)); 			/* docPerCab[cabinet] */
+	int *docPerCab = calloc(info.cabinet, sizeof(int)); 		/* docPerCab[cabinet] */
 	double **centroid = calloc(info.subject, sizeof(double*));	/* centroid[cabinet][subject] - centroid of the cabinet */
 
 	for(sub = 0; sub < info.subject; sub++)

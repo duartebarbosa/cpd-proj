@@ -55,7 +55,7 @@ int init(){
 int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	register double distance, aux;
-	int *docPerCab = calloc(info.cabinet, sizeof(int)); 			/* docPerCab[cabinet] */
+	int *docPerCab = calloc(info.cabinet, sizeof(int)); 		/* docPerCab[cabinet] */
 	double **centroid = calloc(info.subject, sizeof(double*));	/* centroid[cabinet][subject] - centroid of the cabinet */
 
 	for(sub = 0; sub < info.subject; sub++)
@@ -63,9 +63,10 @@ int process(){
 
 	while(flag){
 		memset(docPerCab, 0, info.cabinet * sizeof(int));
-
+		flag = 0;
 		for(sub = 0; sub < info.subject; sub++)
-			memset(centroid[sub], 0, info.subject * sizeof(double));
+			for(cab = 0; cab < info.cabinet; cab++)
+				centroid[sub][cab] = 0;
 		
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
@@ -73,13 +74,15 @@ int process(){
 				centroid[sub][info.cabinets[doc]] += info.score[doc][sub];
 			docPerCab[info.cabinets[doc]]++;
 		}
+		#pragma omp parallel for collapse(2) private(cab)
 		for(sub = 0; sub < info.subject; sub++)
 			for(cab = 0; cab < info.cabinet; cab++){
 				centroid[sub][cab] /= docPerCab[cab]; 		/* actually compute the average */
 		}
 
 		/* calculate distance between cab and doc; set the new cabinet */
-		for(flag = 0, doc = 0; doc < info.document; doc++){
+		#pragma omp parallel for private(cab,sub,distance,tmp,aux)
+		for(doc = 0; doc < info.document; doc++){
 			aux = HUGE_VALF;
 			for(cab = 0; cab < info.cabinet; cab++){
 				distance = 0;
