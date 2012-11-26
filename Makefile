@@ -11,7 +11,7 @@ docs_serialq: docs-serial-quick.c
 	$(CC) $(GOODFLAGS) -fopenmp docs-serial-quick.c -o docs-serialq
 
 docs_omp: docs-omp2.c
-	$(CC) $(GOODFLAGS) -fopenmp docs-omp2.c -o docs-omp
+	$(CC) $(GOODFLAGS) -fopenmp -g docs-omp2.c -o docs-omp
 
 backup: clean zip
 
