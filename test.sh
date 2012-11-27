@@ -1,25 +1,15 @@
 #!/bin/bash
 # Bash script for running project tests
 
-FILES=( ex1000-50d ex10-2d ex1M-100d ex5-1d )
+FILES=( ex5-1d ex10-2d ex1000-50d ex1M-100d )
 
-echo "Compiling"
-make all;
-sync;
+make clean all
+sync
 
-echo "Executing"
 for((i=0; i < 4; i++)) do
-	echo "	input: "${FILES[i]}
-	time ./docs-serial sampleDocInstances2/${FILES[i].in}
+	echo "______"
+	echo "input: "${FILES[i]}
+	time ./docs-omp sampleDocInstances/in/${FILES[i]}.in
+	diff sampleDocInstances/in/${FILES[i]}.out sampleDocInstances/out/${FILES[i]}.out
 done
-
-echo "Testing"
-for((i=0; i < 4; i++)) do
-	diff sampleDocInstances/${FILES[i]}.out sampleDocInstances2/${FILES[i]}.out
-done
-
-echo "Cleaning"
-make clean;
-
-echo "Done!"
 exit

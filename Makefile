@@ -2,7 +2,7 @@ CC = gcc
 DEBUGFLAGS = -ansi -Wall -pedantic -g
 GOODFLAGS = -O3 -march=native
 
-all: clean docs_serial docs_omp docs_mpi
+all: clean docs_serial docs_omp docs_mpi docs_mpi_omp
 
 docs_serial: docs-serial.c
 	$(CC) $(GOODFLAGS) -fopenmp docs-serial.c -o docs-serial
@@ -11,7 +11,10 @@ docs_omp: docs-omp.c
 	$(CC) $(GOODFLAGS) -fopenmp -g docs-omp.c -o docs-omp
 
 docs_mpi: docs-mpi.c
-	$(CC) $(GOODFLAGS) -fopenmp -g docs-mpi.c -o docs-mpi
+	/usr/lib64/openmpi/bin/mpicc $(GOODFLAGS) -g docs-mpi.c -o docs-mpi
+
+docs_mpi_omp: docs-mpi-omp.c
+	/usr/lib64/openmpi/bin/mpicc $(GOODFLAGS) -fopenmp -g docs-mpi.c -o docs-mpi
 
 backup: clean zip
 
