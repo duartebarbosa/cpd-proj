@@ -20,10 +20,9 @@ struct {
 } info;
 
 inline int power(int b, int e){
-	register int res = 1;
-	for(; e != 0; e--)
-		res *= b;
-	return res;
+	for(; !e; e--)
+		b *= b;
+	return b;
 }
 
 double naive_strtod(const char *p) {
