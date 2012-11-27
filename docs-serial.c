@@ -6,6 +6,7 @@
 #include <omp.h>
 
 #define LINE_SIZE 1024
+#define CENTROID(x,y) centroid[(x) + (y) * info.cabinet]
 #define QUAD(x) (x)*(x)
 
 struct {
@@ -68,7 +69,7 @@ int init(char * filename){
 	for(doc = 0; doc < info.document; doc++){
 		info.cabinets[doc] = doc % info.cabinet;
 		info.score[doc] = malloc(info.subject*sizeof(double));
-		if(fgets(line, LINE_SIZE, info.in)!= NULL){
+		if(fgets(line, LINE_SIZE, info.in)){
 			strtok_r(line, " ", &tmp);
 			for(sub = 0; sub < info.subject; sub++)
 				info.score[doc][sub] = naive_strtod(strtok_r(NULL, " ", &tmp));
@@ -80,27 +81,22 @@ int init(char * filename){
 int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	register double distance, aux;
-	int *docPerCab = malloc(info.cabinet*sizeof(int)); 		/* docPerCab[cabinet] */
-	double **centroid = malloc(info.subject*sizeof(double*));	/* centroid[cabinet][subject] - centroid of the cabinet */
-
-	for(sub = 0; sub < info.subject; sub++)
-		centroid[sub] = malloc(info.cabinet*sizeof(double));
+	int *docPerCab = malloc(info.cabinet*sizeof(int)); 			/* docPerCab[cabinet] */
+	double *centroid = malloc(info.cabinet*info.subject*sizeof(double));	/* centroid[cabinet][subject] - centroid of the cabinet */
 
 	while(flag){
 		memset(docPerCab, 0, info.cabinet * sizeof(int));
-
-		for(sub = 0; sub < info.subject; sub++)
-			memset(centroid[sub], 0, info.cabinet * sizeof(double));
+		memset(centroid, 0, info.cabinet * info.subject * sizeof(double));
 		
 		/* centroid - average for each cabinet and subject */
 		for(doc = 0; doc < info.document; doc++){
 			for(sub = 0; sub < info.subject; sub++)
-				centroid[sub][info.cabinets[doc]] += info.score[doc][sub];
+				CENTROID(info.cabinets[doc], sub) += info.score[doc][sub];
 			docPerCab[info.cabinets[doc]]++;
 		}
-		for(sub = 0; sub < info.subject; sub++)
-			for(cab = 0; cab < info.cabinet; cab++){
-				centroid[sub][cab] /= docPerCab[cab]; 		/* actually compute the average */
+		for(cab = 0; cab < info.cabinet; cab++){
+			for(sub = 0; sub < info.subject; sub++)
+				CENTROID(cab, sub) /= docPerCab[cab]; 		/* actually compute the average */
 		}
 
 		/* calculate distance between cab and doc; set the new cabinet */
@@ -109,7 +105,7 @@ int process(){
 			for(cab = 0; cab < info.cabinet; cab++){
 				distance = 0;
 				for(sub = 0; sub < info.subject; sub++)
-					distance += QUAD(info.score[doc][sub] - centroid[sub][cab]);
+					distance += QUAD(info.score[doc][sub] - CENTROID(cab, sub));
 				if(distance < aux){
 					tmp = cab;
 					aux = distance;
@@ -123,13 +119,15 @@ int process(){
 	}
 	
 	free(docPerCab);
-		
+	free(centroid);
+	
 	return 0;
 }
 
 int flushClean(char *filename){
 	register int doc = 0;
-	char *outfile = strcat(strtok(strdup(filename), "."), ".out");
+	char *outfile = alloca(strlen(filename)+1);
+	outfile = strcat(strtok(strcpy(outfile, filename), "."), ".out");
 
 	if(fclose(info.in) == EOF)
 		return -5;
@@ -138,9 +136,8 @@ int flushClean(char *filename){
 	if((info.out = fopen(outfile, "w")) == NULL)
 		return -3;
 
-	for(; doc < info.document; doc++){
+	for(; doc < info.document; doc++)
 		fprintf(info.out, "%d %d\n", doc, info.cabinets[doc]);
-	}
 
 	if(fclose(info.out) == EOF)
 		return -6;
@@ -149,6 +146,7 @@ int flushClean(char *filename){
 	for(doc = 0; doc < info.document; doc++)
 		free(info.score[doc]);
 
+	free(info.score);
 	free(info.cabinets);
 
 	return 0;
@@ -159,10 +157,10 @@ int main(int argc, char** argv){
 	if(argc != 2 && argc != 3)
 		return -1;
 
-	if(argc == 3)
-		info.cabinet = atoi(argv[2]);
-
 	init(argv[1]);
+
+	if(argc == 3)
+		info.cabinet = strtol(argv[2], (char **) NULL, 10);
 
 	process();
 
