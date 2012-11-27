@@ -2,7 +2,7 @@ CC = gcc
 DEBUGFLAGS = -ansi -Wall -pedantic -g
 GOODFLAGS = -O3 -march=native
 
-all: clean docs_serial docs_omp docs_mpi docs_mpi_omp
+all: clean docs_serial docs_omp
 
 docs_serial: docs-serial.c
 	$(CC) $(GOODFLAGS) -fopenmp docs-serial.c -o docs-serial

@@ -13,7 +13,8 @@ struct {
 	int document;
 	int subject;
 	int *cabinets;
-	double **score;
+	double **cabScore;
+	double **docScore;
 	FILE *in;
 	FILE *out;
 } info;
@@ -62,19 +63,23 @@ int init(char * filename){
 	if(fscanf(info.in, "%d\n %d\n %d\n", &info.cabinet, &info.document, &info.subject) != 3)
 		return -4;
 	
-	info.cabinets = malloc(info.document*sizeof(int));
-	info.score = malloc(info.document*sizeof(double*));
+	info.cabinets = malloc(info.document * sizeof(int));
+	info.docScore = malloc(info.document * sizeof(double*));
+	info.cabScore = malloc(info.cabinet * sizeof(double*));
+
+	for(doc = 0; doc < info.cabinet; doc++)
+		info.cabScore[doc] = calloc(info.subject, sizeof(double));
 
 	#pragma omp parallel for
 	for(doc = 0; doc < info.document; doc++)
 		info.cabinets[doc] = doc % info.cabinet;
 
 	for(doc = 0; doc < info.document; doc++){
-		info.score[doc] = malloc(info.subject*sizeof(double));
+		info.docScore[doc] = malloc(info.subject*sizeof(double));
 		if(fgets(line, LINE_SIZE, info.in)){
 			strtok_r(line, " ", &tmp);
 			for(sub = 0; sub < info.subject; sub++)
-				info.score[doc][sub] = naive_strtod(strtok_r(NULL, " ", &tmp));
+				info.docScore[doc][sub] = naive_strtod(strtok_r(NULL, " ", &tmp));
 		}
 	}	
 	return 0;
@@ -83,30 +88,28 @@ int init(char * filename){
 int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	register double distance, aux;
-	int *docPerCab = malloc(info.cabinet*sizeof(int)); 		/* docPerCab[cabinet] */
-	double **centroid = malloc(info.subject*sizeof(double*));	/* centroid[cabinet][subject] - centroid of the cabinet */
-
-	for(sub = 0; sub < info.subject; sub++)
-		centroid[sub] = malloc(info.cabinet*sizeof(double));
 
 	while(flag){
 		flag = 0;
-		memset(docPerCab, 0, info.cabinet * sizeof(int));
-		for(sub = 0; sub < info.subject; sub++)
-			memset(centroid[sub], 0, info.cabinet * sizeof(double));
+		#pragma omp parallel for
+		for(cab = 0; cab < info.cabinet; cab++)
+			memset(info.cabScore[cab], 0, info.subject);
 
-		/* centroid - average for each cabinet and subject */
-		for(doc = 0; doc < info.document; doc++){
-			for(sub = 0; sub < info.subject; sub++)
-				centroid[sub][info.cabinets[doc]] += info.score[doc][sub];
-			docPerCab[info.cabinets[doc]]++;
-		}
-
-		#pragma omp parallel for collapse(2) private(cab)
-		for(sub = 0; sub < info.subject; sub++)
-			for(cab = 0; cab < info.cabinet; cab++){
-				centroid[sub][cab] /= docPerCab[cab]; 		/* actually compute the average */
-		}
+        #pragma omp parallel for private(doc,sub)
+        for(cab = 0; cab < info.cabinet; cab++){ /*computing the average of scores for each cabinet*/
+            int count = 0;
+            for(doc = 0; doc < info.document; doc++){
+                if(info.cabinets[doc] == cab){
+                    for(sub = 0; sub < info.subject; sub++){
+                        info.cabScore[cab][sub] += info.docScore[doc][sub];
+                    }
+                    count++;
+                }
+            }
+            for(sub = 0; sub < info.subject; sub++){
+                info.cabScore[cab][sub] /= count;
+            }
+        }
 
 		/* calculate distance between cab and doc; set the new cabinet */
 		#pragma omp parallel for private(cab,sub,distance,tmp,aux)
@@ -115,7 +118,7 @@ int process(){
 			for(cab = 0; cab < info.cabinet; cab++){
 				distance = 0;
 				for(sub = 0; sub < info.subject; sub++)
-					distance += QUAD(info.score[doc][sub] - centroid[sub][cab]);
+					distance += QUAD(info.docScore[doc][sub] - info.cabScore[cab][sub]);
 				if(distance < aux){
 					tmp = cab;
 					aux = distance;
@@ -127,10 +130,6 @@ int process(){
 			}
 		}
 	}
-	for(sub = 0; sub < info.subject; sub++)
-		free(centroid[sub]);
-	free(centroid);
-	free(docPerCab);
 		
 	return 0;
 }
@@ -155,9 +154,9 @@ int flushClean(char *filename){
 
 	/* cleanup */
 	for(doc = 0; doc < info.document; doc++)
-		free(info.score[doc]);
+		free(info.docScore[doc]);
 
-	free(info.score);
+	free(info.docScore);
 	free(info.cabinets);
 
 	return 0;
