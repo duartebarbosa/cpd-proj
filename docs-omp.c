@@ -26,31 +26,31 @@ inline int power(int b, int e){
 }
 
 double naive_strtod(const char *p) {
-    double r = 0.0;
-    int neg = 0;
-    if (*p == '-') {
-        neg = 1;
-        ++p;
-    }
-    while (*p >= '0' && *p <= '9') {
-        r = (r*10.0) + (*p - '0');
-        ++p;
-    }
-    if (*p == '.') {
-        double f = 0.0;
-        int n = 0;
-        ++p;
-        while (*p >= '0' && *p <= '9') {
-            f = (f*10.0) + (*p - '0');
-            ++p;
-            ++n;
-        }
-        r += f / power(10.0, n);
-    }
-    if (neg)
-        return -r;
-    
-    return r;
+	int neg = 0;
+	double r = 0.0;
+	if (*p == '-') {
+		neg = 1;
+		++p;
+	}
+	while (*p >= '0' && *p <= '9') {
+		r = (r*10.0) + (*p - '0');
+		++p;
+	}
+	if (*p == '.') {
+		double f = 0.0;
+		int n = 0;
+		++p;
+		while (*p >= '0' && *p <= '9') {
+			f = (f*10.0) + (*p - '0');
+			++p;
+			++n;
+		}
+		r += f / power(10.0, n);
+	}
+	if (neg)
+		return -r;
+
+	return r;
 }
 
 int init(char * filename){
@@ -72,7 +72,7 @@ int init(char * filename){
 
 	for(; doc < info.document; doc++){
 		info.cabinets[doc] = doc % info.cabinet;
-		info.docScore[doc] = malloc(info.subject*sizeof(double));
+		info.docScore[doc] = malloc(info.subject * sizeof(double));
 		if(fgets(line, LINE_SIZE, info.in)){
 			strtok_r(line, " ", &tmp);
 			for(sub = 0; sub < info.subject; sub++)
@@ -93,10 +93,9 @@ int process(){
 	while(flag){
 		flag = 0;
 
-		#pragma omp parallel for collapse(2) private(sub)
+		#pragma omp parallel for
 		for(cab = 0; cab < info.cabinet; cab++)
-			for(sub = 0; sub < info.subject; sub++)
-				info.cabScore[cab][sub] = 0;
+				memset(info.cabScore[cab], 0, info.subject*sizeof(double));
 
 		/* calculate the average of scores for each cabinet */
         #pragma omp parallel for private(doc,sub)
@@ -120,8 +119,7 @@ int process(){
 		for(doc = 0; doc < info.document; doc++){
 			aux = HUGE_VALF;
 			for(cab = 0; cab < info.cabinet; cab++){
-				distance = 0;
-				for(sub = 0; sub < info.subject; sub++)
+				for(sub = distance = 0; sub < info.subject; sub++)
 					distance += QUAD(info.docScore[doc][sub] - info.cabScore[cab][sub]);
 				if(distance < aux){
 					tmp = cab;
@@ -139,8 +137,8 @@ int process(){
 }
 
 int flushClean(char *filename){
-	register int doc = 0;
-	char *outfile = alloca(strlen(filename)+1);
+	register int doc = 0, cab = 0;
+	char *outfile = alloca(strlen(filename) + 1);
 	outfile = strcat(strtok(filename, "."), ".out");
 
 	/* output */
@@ -158,8 +156,8 @@ int flushClean(char *filename){
 		free(info.docScore[doc]);
 	free(info.docScore);
 
-	for(doc = 0; doc < info.cabinet; doc++)
-		free(info.cabScore[doc]);
+	for(; doc < info.cabinet; cab++)
+		free(info.cabScore[cab]);
 	free(info.cabScore);
 
 	free(info.cabinets);

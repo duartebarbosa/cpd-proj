@@ -26,31 +26,31 @@ inline int power(int b, int e){
 }
 
 double naive_strtod(const char *p) {
-    double r = 0.0;
-    int neg = 0;
-    if (*p == '-') {
-        neg = 1;
-        ++p;
-    }
-    while (*p >= '0' && *p <= '9') {
-        r = (r*10.0) + (*p - '0');
-        ++p;
-    }
-    if (*p == '.') {
-        double f = 0.0;
-        int n = 0;
-        ++p;
-        while (*p >= '0' && *p <= '9') {
-            f = (f*10.0) + (*p - '0');
-            ++p;
-            ++n;
-        }
-        r += f / power(10.0, n);
-    }
-    if (neg)
-        return -r;
-    
-    return r;
+	int neg = 0;
+	double r = 0.0;
+	if (*p == '-') {
+		neg = 1;
+		++p;
+	}
+	while (*p >= '0' && *p <= '9') {
+		r = (r*10.0) + (*p - '0');
+		++p;
+	}
+	if (*p == '.') {
+		double f = 0.0;
+		int n = 0;
+		++p;
+		while (*p >= '0' && *p <= '9') {
+			f = (f*10.0) + (*p - '0');
+			++p;
+			++n;
+		}
+		r += f / power(10.0, n);
+	}
+	if (neg)
+		return -r;
+
+	return r;
 }
 
 int init(char * filename){
@@ -75,6 +75,9 @@ int init(char * filename){
 				info.score[doc][sub] = naive_strtod(strtok_r(NULL, " ", &tmp));
 		}
 	}	
+	if(fclose(info.in) == EOF)
+		return -4;
+
 	return 0;
 }
 
@@ -126,15 +129,12 @@ int process(){
 
 int flushClean(char *filename){
 	register int doc = 0;
-	char *outfile = alloca(strlen(filename)+1);
-	outfile = strcat(strtok(strcpy(outfile, filename), "."), ".out");
+	char *outfile = alloca(strlen(filename) + 1);
+	outfile = strcat(strtok(filename, "."), ".out");
 
-	if(fclose(info.in) == EOF)
-		return -5;
-	
 	/* output */
 	if((info.out = fopen(outfile, "w")) == NULL)
-		return -3;
+		return -5;
 
 	for(; doc < info.document; doc++)
 		fprintf(info.out, "%d %d\n", doc, info.cabinets[doc]);
