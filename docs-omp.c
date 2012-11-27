@@ -54,27 +54,24 @@ double naive_strtod(const char *p) {
 }
 
 int init(char * filename){
-	register int sub, doc;
+	register int sub, doc = 0, cab = 0;
 	char *tmp = NULL, line[LINE_SIZE] = {0};
 	
 	if((info.in = fopen(filename, "r")) == NULL)
 		return -2;
 	
 	if(fscanf(info.in, "%d\n %d\n %d\n", &info.cabinet, &info.document, &info.subject) != 3)
-		return -4;
+		return -3;
 	
 	info.cabinets = malloc(info.document * sizeof(int));
 	info.docScore = malloc(info.document * sizeof(double*));
 	info.cabScore = malloc(info.cabinet * sizeof(double*));
 
-	for(doc = 0; doc < info.cabinet; doc++)
-		info.cabScore[doc] = calloc(info.subject, sizeof(double));
+	for(; cab < info.cabinet; cab++)
+		info.cabScore[cab] = malloc(info.subject * sizeof(double));
 
-	#pragma omp parallel for
-	for(doc = 0; doc < info.document; doc++)
+	for(; doc < info.document; doc++){
 		info.cabinets[doc] = doc % info.cabinet;
-
-	for(doc = 0; doc < info.document; doc++){
 		info.docScore[doc] = malloc(info.subject*sizeof(double));
 		if(fgets(line, LINE_SIZE, info.in)){
 			strtok_r(line, " ", &tmp);
@@ -82,6 +79,10 @@ int init(char * filename){
 				info.docScore[doc][sub] = naive_strtod(strtok_r(NULL, " ", &tmp));
 		}
 	}	
+
+	if(fclose(info.in) == EOF)
+		return -4;
+
 	return 0;
 }
 
@@ -91,12 +92,15 @@ int process(){
 
 	while(flag){
 		flag = 0;
-		#pragma omp parallel for
-		for(cab = 0; cab < info.cabinet; cab++)
-			memset(info.cabScore[cab], 0, info.subject);
 
+		#pragma omp parallel for collapse(2) private(sub)
+		for(cab = 0; cab < info.cabinet; cab++)
+			for(sub = 0; sub < info.subject; sub++)
+				info.cabScore[cab][sub] = 0;
+
+		/* calculate the average of scores for each cabinet */
         #pragma omp parallel for private(doc,sub)
-        for(cab = 0; cab < info.cabinet; cab++){ /*computing the average of scores for each cabinet*/
+        for(cab = 0; cab < info.cabinet; cab++){
             int count = 0;
             for(doc = 0; doc < info.document; doc++){
                 if(info.cabinets[doc] == cab){
@@ -137,14 +141,11 @@ int process(){
 int flushClean(char *filename){
 	register int doc = 0;
 	char *outfile = alloca(strlen(filename)+1);
-	outfile = strcat(strtok(strcpy(outfile, filename), "."), ".out");
+	outfile = strcat(strtok(filename, "."), ".out");
 
-	if(fclose(info.in) == EOF)
-		return -5;
-	
 	/* output */
 	if((info.out = fopen(outfile, "w")) == NULL)
-		return -3;
+		return -5;
 
 	for(; doc < info.document; doc++)
 		fprintf(info.out, "%d %d\n", doc, info.cabinets[doc]);
@@ -155,8 +156,12 @@ int flushClean(char *filename){
 	/* cleanup */
 	for(doc = 0; doc < info.document; doc++)
 		free(info.docScore[doc]);
-
 	free(info.docScore);
+
+	for(doc = 0; doc < info.cabinet; doc++)
+		free(info.cabScore[doc]);
+	free(info.cabScore);
+
 	free(info.cabinets);
 
 	return 0;
@@ -164,6 +169,7 @@ int flushClean(char *filename){
 
 int main(int argc, char** argv){
 	double start = omp_get_wtime();
+	/*omp_set_num_threads(6);*/
 	if(argc != 2 && argc != 3)
 		return -1;
 
