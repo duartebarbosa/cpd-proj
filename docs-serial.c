@@ -63,12 +63,12 @@ int init(char * filename){
 	if(fscanf(info.in, "%d\n %d\n %d\n", &info.cabinet, &info.document, &info.subject) != 3)
 		return -4;
 	
-	info.cabinets = malloc(info.document*sizeof(int));
-	info.score = malloc(info.document*sizeof(double*));
+	info.cabinets = malloc(info.document * sizeof(int));
+	info.score = malloc(info.document * sizeof(double*));
 
 	for(doc = 0; doc < info.document; doc++){
 		info.cabinets[doc] = doc % info.cabinet;
-		info.score[doc] = malloc(info.subject*sizeof(double));
+		info.score[doc] = malloc(info.subject * sizeof(double));
 		if(fgets(line, LINE_SIZE, info.in)){
 			strtok_r(line, " ", &tmp);
 			for(sub = 0; sub < info.subject; sub++)
@@ -84,8 +84,8 @@ int init(char * filename){
 int process(){
 	register int sub, doc, cab, tmp, flag = 1;
 	register double distance, aux;
-	int *docPerCab = malloc(info.cabinet*sizeof(int)); 			/* docPerCab[cabinet] */
-	double *centroid = malloc(info.cabinet*info.subject*sizeof(double));	/* centroid[cabinet][subject] - centroid of the cabinet */
+	int *docPerCab = malloc(info.cabinet * sizeof(int)); 						/* docPerCab[cabinet] */
+	double *centroid = malloc(info.cabinet * info.subject * sizeof(double));	/* centroid[cabinet][subject] - centroid of the cabinet */
 
 	while(flag){
 		memset(docPerCab, 0, info.cabinet * sizeof(int));

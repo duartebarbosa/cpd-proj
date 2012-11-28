@@ -56,13 +56,13 @@ double naive_strtod(const char *p) {
 int init(char * filename){
 	register int sub, doc = 0, cab = 0;
 	char *tmp = NULL, line[LINE_SIZE] = {0};
-	
+
 	if((info.in = fopen(filename, "r")) == NULL)
 		return -2;
-	
+
 	if(fscanf(info.in, "%d\n %d\n %d\n", &info.cabinet, &info.document, &info.subject) != 3)
 		return -3;
-	
+
 	info.cabinets = malloc(info.document * sizeof(int));
 	info.docScore = malloc(info.document * sizeof(double*));
 	info.cabScore = malloc(info.cabinet * sizeof(double*));
@@ -78,7 +78,7 @@ int init(char * filename){
 			for(sub = 0; sub < info.subject; sub++)
 				info.docScore[doc][sub] = naive_strtod(strtok_r(NULL, " ", &tmp));
 		}
-	}	
+	}
 
 	if(fclose(info.in) == EOF)
 		return -4;
@@ -95,24 +95,22 @@ int process(){
 
 		#pragma omp parallel for
 		for(cab = 0; cab < info.cabinet; cab++)
-				memset(info.cabScore[cab], 0, info.subject*sizeof(double));
+				memset(info.cabScore[cab], 0, info.subject * sizeof(double));
 
 		/* calculate the average of scores for each cabinet */
-        #pragma omp parallel for private(doc,sub)
-        for(cab = 0; cab < info.cabinet; cab++){
-            int count = 0;
-            for(doc = 0; doc < info.document; doc++){
-                if(info.cabinets[doc] == cab){
-                    for(sub = 0; sub < info.subject; sub++){
-                        info.cabScore[cab][sub] += info.docScore[doc][sub];
-                    }
-                    count++;
-                }
-            }
-            for(sub = 0; sub < info.subject; sub++){
-                info.cabScore[cab][sub] /= count;
-            }
-        }
+		#pragma omp parallel for private(doc,sub)
+		for(cab = 0; cab < info.cabinet; cab++){
+			int count = 0;
+			for(doc = 0; doc < info.document; doc++){
+				if(info.cabinets[doc] == cab){
+					for(sub = 0; sub < info.subject; sub++)
+						info.cabScore[cab][sub] += info.docScore[doc][sub];
+					count++;
+				}
+			}
+			for(sub = 0; sub < info.subject; sub++)
+				info.cabScore[cab][sub] /= count;
+		}
 
 		/* calculate distance between cab and doc; set the new cabinet */
 		#pragma omp parallel for private(cab,sub,distance,tmp,aux)
