@@ -3,13 +3,13 @@
 
 FILES=( ex5-1d ex10-2d ex1000-50d ex1M-100d )
 
-make clean docs_serial
+make clean docs_mpi
 sync
 
 for((i=0; i < 4; i++)) do
 	echo "______"
 	echo "input: "${FILES[i]}
-	time ./docs-serial sampleDocInstances/in/${FILES[i]}.in
+	time /usr/lib64/openmpi/bin/mpirun ./docs-mpi sampleDocInstances/in/${FILES[i]}.in
 	cmp sampleDocInstances/in/${FILES[i]}.out sampleDocInstances/out/${FILES[i]}.out
 done
 exit
