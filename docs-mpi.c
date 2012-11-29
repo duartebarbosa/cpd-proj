@@ -12,17 +12,19 @@
 #define SUBJECTS info.doc_sub_cab[1]
 #define CABINETS info.doc_sub_cab[2]
 
+
+
+
 #define MASTER 0
 #define INIT_TAG 1
 
 #define FILL_TAG 20
 #define CABSCORE_TAG 3
+#define FLAG_TAG 50
 
-#define FOREIGN_CHUNK(x,y) ((y)*((x)/numtasks))
-#define FOREIGN_LIMIT_CHUNK(x,y) (((y)+1)*((x)/numtasks))
-
-#define CHUNK(x) (taskid*((x)/numtasks))
-#define LIMIT_CHUNK(x) ((taskid+1)*((x)/numtasks))
+#define CHUNK(x) ((x)/numtasks)
+#define LIMIT_INF_CHUNK(x) ((taskid)*((x)/numtasks))
+#define LIMIT_SUP_CHUNK(x) ((taskid+1)*((x)/numtasks))
 
 struct {
 	int doc_sub_cab[3];
@@ -86,17 +88,21 @@ int memInit(){
 }
 
 int process(){
-	register int sub, doc, cab, tmp, flag = 1, task, count;
+	register int sub, doc, cab, tmp, task, count;
 	register double distance, aux;
+	int flag = 1;
 int i = 0;
-	MPI_Request request[CABINETS];
+	MPI_Request request_cab[CABINETS], request_task[numtasks];
 	MPI_Status status[CABINETS];
 
 	/*printf("MPI task %d of %d\n", taskid, numtasks);*/
 
 	while(flag){
 		flag = 0;
-		printf("coco, task: %d\n", taskid);
+		printf("---Barreira, i: %d, task: %d of %d\n", i, taskid, numtasks);
+		
+		/*MPI_Barrier(MPI_COMM_WORLD);*/
+
 		for(cab = 0; cab < (CABINETS); cab++)
 			memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));
 
@@ -114,34 +120,39 @@ int i = 0;
 			for(sub = 0; sub < SUBJECTS; sub++)
 				info.cabScore[cab][sub] /= count;
 		}
-
-printf("---Barreira, i: %d, task: %d of %d\n", i, taskid, numtasks);
-MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
 
 		if(taskid == MASTER){
 			/* falta calcular o resto */
-			printf("cheguei\n");
+			printf("\tMASTER - entrou no if\n");
 			for(task = 1; task < numtasks; task++){
-				for(cab = LIMIT_CHUNK(CABINETS); cab < CABINETS; cab++){
-					printf("\ttask %d: RECEIVE cab %d\n", task, cab);
-					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);
-					
+				for(cab = LIMIT_SUP_CHUNK(CABINETS); cab < 2; cab++){
+					sleep(2);
+					printf("\t\ttask: %d RECEIVE cab %d\n", taskid, cab);
+					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);			
 				}
 			}
+			printf("\tMASTER - saiu do if\n");
 		}
 		else {
-			for(cab = CHUNK(CABINETS); cab < (CABINETS); cab++){
-				printf("\ttask: %d: SEND cab: %d\n", taskid, cab);
-				MPI_Isend(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, MASTER, CABSCORE_TAG, MPI_COMM_WORLD, &request[cab]);
-				MPI_Wait(&request[cab], &status[cab]);
+			MPI_Request request_cab[CHUNK(CABINETS)];
+			printf("\tSLAVE - entrou no else!\n");
+			for(cab = LIMIT_INF_CHUNK(CABINETS); cab < 2; cab++){
+				sleep(2);
+				printf("\t\ttask: %d SEND cab: %d\n", taskid, LIMIT_INF_CHUNK(CABINETS));
+				MPI_Isend(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, MASTER, CABSCORE_TAG, MPI_COMM_WORLD, &request_cab[cab-CHUNK(CABINETS)]);
 			}
-
+			printf("antes do MPI_Wait\n");
+			MPI_Waitall(2 - LIMIT_INF_CHUNK(CABINETS), request_cab, status);
+			printf("\tSLAVE - saiu do else!\n");
 		}
-		
-		
-		MPI_Barrier(MPI_COMM_WORLD);
+MPI_Barrier(MPI_COMM_WORLD);
+printf("terra de ninguem\n");
+MPI_Barrier(MPI_COMM_WORLD);		
+
 		if(taskid == MASTER){
 			/* calculate distance between cab and doc; set the new cabinet */
+			printf("\tMASTER - entrou na distancia\n");
 			for(doc = 0; doc < DOCUMENTS; doc++){
 				aux = HUGE_VALF;
 				for(cab = 0; cab < CABINETS; cab++){
@@ -157,8 +168,25 @@ MPI_Barrier(MPI_COMM_WORLD);
 					flag = 1;
 				}
 			}
+			printf("\tMASTER - flag : %d\n", flag);
+			for(task = 1; task < numtasks; task++){
+				printf("\t\tsend flag!\n");
+				MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
+				MPI_Wait(&request_task[task], MPI_STATUS_IGNORE);
+			}
+
+			printf("\tMASTER - flag : %d\n", flag);
+			printf("\tMASTER - saiu da distancia\n");
 		}
-		MPI_Barrier(MPI_COMM_WORLD);
+		else {
+			printf("\tSLAVE - entrou no final\n");
+			sleep(10);
+			printf("\t\treceive flag!\n");
+			printf("\tSLAVE - flag : %d\n", flag);
+			MPI_Recv(&flag, 1, MPI_INT, MASTER, FLAG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			printf("\tSLAVE - flag : %d\n", flag);
+			printf("\tSLAVE - saiu do final\n");
+		}
 		i++;
 	}
 		
@@ -202,7 +230,7 @@ int main(int argc, char** argv){
 
 	char hostname[MPI_MAX_PROCESSOR_NAME];
 	MPI_Status status;
-	MPI_Request reqs[DOCUMENTS], info_reqs[3];
+	MPI_Request reqs[DOCUMENTS];
 
 	int doc, sub, cab, task;
 	char *tmp = NULL, line[LINE_SIZE] = {0};
@@ -232,6 +260,8 @@ int main(int argc, char** argv){
 
 	if(taskid == MASTER){
 		FILE *input;
+		MPI_Request info_reqs[numtasks-1];
+
 		if((input = fopen(argv[1], "r")) == NULL)
 			return -2;
 
@@ -241,8 +271,10 @@ int main(int argc, char** argv){
 		if(argc == 3)
 			CABINETS = strtol(argv[2], (char **) NULL, 10);
 
-		for(task = 0; task < numtasks; task++)
-			MPI_Isend(info.doc_sub_cab, 3, MPI_INT, task, INIT_TAG, MPI_COMM_WORLD, &info_reqs[0]);
+		for(task = 1; task < numtasks; task++)
+			MPI_Isend(info.doc_sub_cab, 3, MPI_INT, task, INIT_TAG, MPI_COMM_WORLD, &info_reqs[task-1]);
+
+		MPI_Waitall(numtasks - 1, info_reqs, MPI_STATUS_IGNORE);
 
 		memInit();
 
