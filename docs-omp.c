@@ -15,8 +15,6 @@ struct {
 	int *cabinets;
 	double **cabScore;
 	double **docScore;
-	FILE *in;
-	FILE *out;
 } info;
 
 inline int power(int b, int e){
@@ -56,11 +54,12 @@ double naive_strtod(const char *p) {
 int init(char * filename){
 	register int sub, doc = 0, cab = 0;
 	char *tmp = NULL, line[LINE_SIZE] = {0};
+	FILE *input;
 
-	if((info.in = fopen(filename, "r")) == NULL)
+	if((input = fopen(filename, "r")) == NULL)
 		return -2;
 
-	if(fscanf(info.in, "%d\n %d\n %d\n", &info.cabinet, &info.document, &info.subject) != 3)
+	if(fscanf(input, "%d\n %d\n %d\n", &info.cabinet, &info.document, &info.subject) != 3)
 		return -3;
 
 	info.cabinets = malloc(info.document * sizeof(int));
@@ -73,14 +72,14 @@ int init(char * filename){
 	for(; doc < info.document; doc++){
 		info.cabinets[doc] = doc % info.cabinet;
 		info.docScore[doc] = malloc(info.subject * sizeof(double));
-		if(fgets(line, LINE_SIZE, info.in)){
+		if(fgets(line, LINE_SIZE, input)){
 			strtok_r(line, " ", &tmp);
 			for(sub = 0; sub < info.subject; sub++)
 				info.docScore[doc][sub] = naive_strtod(strtok_r(NULL, " ", &tmp));
 		}
 	}
 
-	if(fclose(info.in) == EOF)
+	if(fclose(input) == EOF)
 		return -4;
 
 	return 0;
@@ -136,17 +135,18 @@ int process(){
 
 int flushClean(char *filename){
 	register int doc = 0, cab = 0;
+	FILE *output;
 	char *outfile = alloca(strlen(filename) + 1);
 	outfile = strcat(strtok(filename, "."), ".out");
 
 	/* output */
-	if((info.out = fopen(outfile, "w")) == NULL)
+	if((output = fopen(outfile, "w")) == NULL)
 		return -5;
 
 	for(; doc < info.document; doc++)
-		fprintf(info.out, "%d %d\n", doc, info.cabinets[doc]);
+		fprintf(output, "%d %d\n", doc, info.cabinets[doc]);
 
-	if(fclose(info.out) == EOF)
+	if(fclose(output) == EOF)
 		return -6;
 
 	/* cleanup */
@@ -154,7 +154,7 @@ int flushClean(char *filename){
 		free(info.docScore[doc]);
 	free(info.docScore);
 
-	for(; doc < info.cabinet; cab++)
+	for(; cab < info.cabinet; cab++)
 		free(info.cabScore[cab]);
 	free(info.cabScore);
 

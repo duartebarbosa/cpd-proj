@@ -156,7 +156,7 @@ int flushClean(char *filename){
 		free(info.docScore[doc]);
 	free(info.docScore);
 
-	for(; doc < info.cabinet; cab++)
+	for(; cab < info.cabinet; cab++)
 		free(info.cabScore[cab]);
 	free(info.cabScore);
 
