@@ -12,9 +12,6 @@
 #define SUBJECTS info.doc_sub_cab[1]
 #define CABINETS info.doc_sub_cab[2]
 
-
-
-
 #define MASTER 0
 #define INIT_TAG 1
 
@@ -24,7 +21,7 @@
 
 #define CHUNK(x) ((x)/numtasks)
 #define LIMIT_INF_CHUNK(x) ((taskid)*((x)/numtasks))
-#define LIMIT_SUP_CHUNK(x) ((taskid+1)*((x)/numtasks))
+#define LIMIT_SUP_CHUNK(x) (((taskid+1)==numtasks)?(x):((taskid+1)*((x)/numtasks)))
 
 struct {
 	int doc_sub_cab[3];
@@ -98,12 +95,18 @@ int i = 0;
 	/*printf("MPI task %d of %d\n", taskid, numtasks);*/
 
 	while(flag){
+		int lim_inf = LIMIT_INF_CHUNK(CABINETS), lim_sup = LIMIT_SUP_CHUNK(CABINETS);
 		flag = 0;	
 		/*MPI_Barrier(MPI_COMM_WORLD);*/
 
 		for(cab = 0; cab < (CABINETS); cab++)
 			memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));
-
+/*
+		for(cab = lim_inf; cab < lim_sup; cab++){
+			for(sub = 0; sub < SUBJECTS; sub++)
+				printf("task: %d - cab %d, sub %d, result: %f, address: %x\n", taskid, cab, sub, info.cabScore[cab][sub], &info.cabScore[cab][sub]);
+		}
+*/
 		/* calculate the average of scores for each cabinet */
 		for(cab = 0; cab < (CABINETS); cab++){
 			/*printf("%d task: %d, cab: %d\n", i, taskid, cab);*/
@@ -118,22 +121,18 @@ int i = 0;
 			for(sub = 0; sub < SUBJECTS; sub++)
 				info.cabScore[cab][sub] /= count;
 		}
-		MPI_Barrier(MPI_COMM_WORLD);
 
 		if(taskid == MASTER){
 			/* falta calcular o resto */
-			for(task = 1; task < numtasks; task++){
-				for(cab = LIMIT_SUP_CHUNK(CABINETS); cab < 2; cab++){
+			for(task = 1; task < numtasks; task++)
+				for(cab = lim_sup; cab < lim_sup-1; cab++)
 					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);			
-				}
-			}
 		}
 		else {
 			MPI_Request request_cab[CHUNK(CABINETS)];
-			for(cab = LIMIT_INF_CHUNK(CABINETS); cab < 2; cab++){
-				MPI_Isend(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, MASTER, CABSCORE_TAG, MPI_COMM_WORLD, &request_cab[cab-CHUNK(CABINETS)]);
-			}
-			MPI_Waitall(2 - LIMIT_INF_CHUNK(CABINETS), request_cab, status);
+			for(cab = lim_inf; cab < lim_sup-1; cab++)
+				MPI_Isend(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, MASTER, CABSCORE_TAG, MPI_COMM_WORLD, &request_cab[cab-lim_inf]);
+			MPI_Waitall(CHUNK(CABINETS), request_cab, status);
 		}
 
 		if(taskid == MASTER){
@@ -152,19 +151,16 @@ int i = 0;
 					info.cabinets[doc] = tmp;
 					if(!flag){
 						flag = 1;
-						for(task = 1; task < numtasks; task++){
+						for(task = 1; task < numtasks; task++)
 							MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
-							MPI_Wait(&request_task[task], MPI_STATUS_IGNORE);
-						}
 					}
 				}
 			}
 			if(!flag){
-				for(task = 1; task < numtasks; task++){
+				for(task = 1; task < numtasks; task++)
 					MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
-						MPI_Wait(&request_task[task], MPI_STATUS_IGNORE);
-					}
 			}
+			MPI_Waitall(numtasks-1, request_task, MPI_STATUS_IGNORE);
 		}
 		else {
 			MPI_Recv(&flag, 1, MPI_INT, MASTER, FLAG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
