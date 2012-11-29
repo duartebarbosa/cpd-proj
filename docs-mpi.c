@@ -98,9 +98,7 @@ int i = 0;
 	/*printf("MPI task %d of %d\n", taskid, numtasks);*/
 
 	while(flag){
-		flag = 0;
-		printf("---Barreira, i: %d, task: %d of %d\n", i, taskid, numtasks);
-		
+		flag = 0;	
 		/*MPI_Barrier(MPI_COMM_WORLD);*/
 
 		for(cab = 0; cab < (CABINETS); cab++)
@@ -124,35 +122,22 @@ int i = 0;
 
 		if(taskid == MASTER){
 			/* falta calcular o resto */
-			printf("\tMASTER - entrou no if\n");
 			for(task = 1; task < numtasks; task++){
 				for(cab = LIMIT_SUP_CHUNK(CABINETS); cab < 2; cab++){
-					sleep(2);
-					printf("\t\ttask: %d RECEIVE cab %d\n", taskid, cab);
 					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);			
 				}
 			}
-			printf("\tMASTER - saiu do if\n");
 		}
 		else {
 			MPI_Request request_cab[CHUNK(CABINETS)];
-			printf("\tSLAVE - entrou no else!\n");
 			for(cab = LIMIT_INF_CHUNK(CABINETS); cab < 2; cab++){
-				sleep(2);
-				printf("\t\ttask: %d SEND cab: %d\n", taskid, LIMIT_INF_CHUNK(CABINETS));
 				MPI_Isend(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, MASTER, CABSCORE_TAG, MPI_COMM_WORLD, &request_cab[cab-CHUNK(CABINETS)]);
 			}
-			printf("antes do MPI_Wait\n");
 			MPI_Waitall(2 - LIMIT_INF_CHUNK(CABINETS), request_cab, status);
-			printf("\tSLAVE - saiu do else!\n");
 		}
-MPI_Barrier(MPI_COMM_WORLD);
-printf("terra de ninguem\n");
-MPI_Barrier(MPI_COMM_WORLD);		
 
 		if(taskid == MASTER){
 			/* calculate distance between cab and doc; set the new cabinet */
-			printf("\tMASTER - entrou na distancia\n");
 			for(doc = 0; doc < DOCUMENTS; doc++){
 				aux = HUGE_VALF;
 				for(cab = 0; cab < CABINETS; cab++){
@@ -168,24 +153,14 @@ MPI_Barrier(MPI_COMM_WORLD);
 					flag = 1;
 				}
 			}
-			printf("\tMASTER - flag : %d\n", flag);
+
 			for(task = 1; task < numtasks; task++){
-				printf("\t\tsend flag!\n");
 				MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
 				MPI_Wait(&request_task[task], MPI_STATUS_IGNORE);
 			}
-
-			printf("\tMASTER - flag : %d\n", flag);
-			printf("\tMASTER - saiu da distancia\n");
 		}
 		else {
-			printf("\tSLAVE - entrou no final\n");
-			sleep(10);
-			printf("\t\treceive flag!\n");
-			printf("\tSLAVE - flag : %d\n", flag);
 			MPI_Recv(&flag, 1, MPI_INT, MASTER, FLAG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			printf("\tSLAVE - flag : %d\n", flag);
-			printf("\tSLAVE - saiu do final\n");
 		}
 		i++;
 	}
