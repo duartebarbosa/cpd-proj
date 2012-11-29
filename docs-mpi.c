@@ -150,13 +150,20 @@ int i = 0;
 				}
 				if(info.cabinets[doc] != tmp){
 					info.cabinets[doc] = tmp;
-					flag = 1;
+					if(!flag){
+						flag = 1;
+						for(task = 1; task < numtasks; task++){
+							MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
+							MPI_Wait(&request_task[task], MPI_STATUS_IGNORE);
+						}
+					}
 				}
 			}
-
-			for(task = 1; task < numtasks; task++){
-				MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
-				MPI_Wait(&request_task[task], MPI_STATUS_IGNORE);
+			if(!flag){
+				for(task = 1; task < numtasks; task++){
+					MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
+						MPI_Wait(&request_task[task], MPI_STATUS_IGNORE);
+					}
 			}
 		}
 		else {
