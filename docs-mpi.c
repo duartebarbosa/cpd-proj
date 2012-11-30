@@ -20,21 +20,23 @@
 #define FLAG_TAG 50
 #define CABINETS_TAG 60
 
-#define CHUNK(x) ((x)/numtasks)
-#define LIMIT_INF_CHUNK(x) ((taskid)*((x)/numtasks))
-#define LIMIT_SUP_CHUNK(x) (((taskid+1)==numtasks)?(x):((taskid+1)*((x)/numtasks)))
+#define CHUNK(x) ((x)/info.numtasks)
+#define LIMIT_INF_CHUNK(x) ((info.taskid)*((x)/info.numtasks))
+#define LIMIT_SUP_CHUNK(x) (((info.taskid+1)==info.numtasks)?(x):((info.taskid+1)*((x)/info.numtasks)))
 
-#define FLIMIT_INF_CHUNK(x,y) ((y)*((x)/numtasks))
-#define FLIMIT_SUP_CHUNK(x,y) (((y+1)==numtasks)?(x):((y+1)*((x)/numtasks)))
+#define FLIMIT_INF_CHUNK(x,y) ((y)*((x)/info.numtasks))
+#define FLIMIT_SUP_CHUNK(x,y) (((y+1)==info.numtasks)?(x):((y+1)*((x)/info.numtasks)))
 
 struct {
+	int numtasks;
+	int taskid;
 	int doc_sub_cab[3];
 	int *cabinets;
 	double **cabScore;
 	double **docScore;
 } info;
 
-int numtasks, taskid, len;
+
 
 inline int power(int b, int e){
 	for(; !e; e--)
@@ -93,17 +95,17 @@ int process(){
 	register double distance, aux;
 	int flag = 1;
 int i = 0;
-	MPI_Request request_cab[CABINETS], request_task[numtasks];
+	MPI_Request request_cab[CABINETS], request_task[info.numtasks];
 	MPI_Status status[CABINETS];
 
-	/*printf("MPI task %d of %d\n", taskid, numtasks);*/
+	/*printf("MPI task %d of %d\n", info.taskid, info.numtasks);*/
 
 	while(flag){
 		int lim_inf = LIMIT_INF_CHUNK(CABINETS), lim_sup = LIMIT_SUP_CHUNK(CABINETS);
 		flag = 0;	
 		/*MPI_Barrier(MPI_COMM_WORLD);*/
 
-		if(taskid == MASTER){
+		if(info.taskid == MASTER){
 			for(cab = 0; cab < (CABINETS); cab++)
 				memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));
 		}
@@ -113,7 +115,7 @@ int i = 0;
 /*
 		for(cab = lim_inf; cab < lim_sup; cab++){
 			for(sub = 0; sub < SUBJECTS; sub++)
-				printf("task: %d - cab %d, sub %d, result: %f, address: %x\n", taskid, cab, sub, info.cabScore[cab][sub], &info.cabScore[cab][sub]);
+				printf("task: %d - cab %d, sub %d, result: %f, address: %x\n", info.taskid, cab, sub, info.cabScore[cab][sub], &info.cabScore[cab][sub]);
 		}
 */
 		/* calculate the average of scores for each cabinet */
@@ -130,13 +132,13 @@ int i = 0;
 				info.cabScore[cab][sub] /= count;
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
-		if(taskid == MASTER){
+		if(info.taskid == MASTER){
 			/* falta calcular o resto */
-			for(task = 1; task < numtasks; task++){
+			for(task = 1; task < info.numtasks; task++){
 				lim_inf = FLIMIT_INF_CHUNK(CABINETS,task);
 				lim_sup = FLIMIT_SUP_CHUNK(CABINETS,task);
 				for(cab = lim_inf; cab < lim_sup; cab++){
-					/*printf("task: %d, inf: %d, cab: %d, sup: %d\n", taskid, lim_inf, cab, lim_sup);*/
+					/*printf("task: %d, inf: %d, cab: %d, sup: %d\n", info.taskid, lim_inf, cab, lim_sup);*/
 					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab-CHUNK(CABINETS)]);
 				}
 			}
@@ -148,7 +150,7 @@ int i = 0;
 			MPI_Waitall(CHUNK(CABINETS), request_cab, status);
 		}
 
-		if(taskid == MASTER){
+		if(info.taskid == MASTER){
 			/* calculate distance between cab and doc; set the new cabinet */
 			for(doc = 0; doc < DOCUMENTS; doc++){
 				aux = HUGE_VALF;
@@ -164,20 +166,20 @@ int i = 0;
 					info.cabinets[doc] = tmp;
 					if(!flag){
 						flag = 1;
-						for(task = 1; task < numtasks; task++)
+						for(task = 1; task < info.numtasks; task++)
 							MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
 					}
 				}
 			}
 			if(!flag){
-				for(task = 1; task < numtasks; task++)
+				for(task = 1; task < info.numtasks; task++)
 					MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
 			}
-			MPI_Waitall(numtasks-1, request_task, MPI_STATUS_IGNORE);
+			MPI_Waitall(info.numtasks-1, request_task, MPI_STATUS_IGNORE);
 			if(flag){
-				for(task = 1; task < numtasks; task++)
+				for(task = 1; task < info.numtasks; task++)
 					MPI_Isend(info.cabinets, DOCUMENTS, MPI_INT, task, CABINETS_TAG, MPI_COMM_WORLD, &request_task[task]);
-				MPI_Waitall(numtasks-1, request_task, MPI_STATUS_IGNORE);
+				MPI_Waitall(info.numtasks-1, request_task, MPI_STATUS_IGNORE);
 			}
 		}
 		else {
@@ -226,20 +228,11 @@ int flushClean(char *filename){
 
 int main(int argc, char** argv){
 
-	char hostname[MPI_MAX_PROCESSOR_NAME];
 	MPI_Status status;
 	MPI_Request reqs[DOCUMENTS];
 
 	int doc, sub, cab, task;
 	char *tmp = NULL, line[LINE_SIZE] = {0};
-
-	int chunksize;
-	int dest;
-	int repeatflag = 1;
-	int cabinet_num;
-	int loop = 0;
-	int position=0;
-	int mode = 0;
 
 	#ifdef GETTIME
 	double start = MPI_Wtime();
@@ -255,13 +248,12 @@ int main(int argc, char** argv){
 		return -1;
 	}
 	
-	MPI_Comm_size(MPI_COMM_WORLD, &numtasks);	/* total number of tasks */
-	MPI_Comm_rank(MPI_COMM_WORLD, &taskid);		/* my TaskID */
-	MPI_Get_processor_name(hostname, &len);		/* my computer's name */
+	MPI_Comm_size(MPI_COMM_WORLD, &info.numtasks);
+	MPI_Comm_rank(MPI_COMM_WORLD, &info.taskid);
 
-	if(taskid == MASTER){
+	if(info.taskid == MASTER){
 		FILE *input;
-		MPI_Request info_reqs[numtasks-1];
+		MPI_Request info_reqs[info.numtasks-1];
 
 		if((input = fopen(argv[1], "r")) == NULL)
 			return -2;
@@ -272,10 +264,10 @@ int main(int argc, char** argv){
 		if(argc == 3)
 			CABINETS = strtol(argv[2], (char **) NULL, 10);
 
-		for(task = 1; task < numtasks; task++)
+		for(task = 1; task < info.numtasks; task++)
 			MPI_Isend(info.doc_sub_cab, 3, MPI_INT, task, INIT_TAG, MPI_COMM_WORLD, &info_reqs[task-1]);
 
-		MPI_Waitall(numtasks - 1, info_reqs, MPI_STATUS_IGNORE);
+		MPI_Waitall(info.numtasks - 1, info_reqs, MPI_STATUS_IGNORE);
 
 		memInit();
 
@@ -290,16 +282,16 @@ int main(int argc, char** argv){
 		if(fclose(input) == EOF)
 			return -4;
 
-		/*printf("task: %d doc: %d, sub: %d, cab: %d\n", taskid, DOCUMENTS, SUBJECTS, CABINETS);*/
+		/*printf("task: %d doc: %d, sub: %d, cab: %d\n", info.taskid, DOCUMENTS, SUBJECTS, CABINETS);*/
 
-		for(task = 1; task < numtasks; task++)
+		for(task = 1; task < info.numtasks; task++)
 			for(doc = 0; doc < DOCUMENTS; doc++)
 				MPI_Send(info.docScore[doc], SUBJECTS, MPI_DOUBLE, task, FILL_TAG, MPI_COMM_WORLD);
 	}
 	else{
 		MPI_Recv(info.doc_sub_cab, 3, MPI_INT, MASTER, INIT_TAG, MPI_COMM_WORLD, &status);
 
-	/*	printf("task: %d doc: %d, sub: %d, cab: %d\n", taskid, DOCUMENTS, SUBJECTS, CABINETS);*/
+	/*	printf("task: %d doc: %d, sub: %d, cab: %d\n", info.taskid, DOCUMENTS, SUBJECTS, CABINETS);*/
 		memInit();
 
 		for(doc = 0; doc < DOCUMENTS; doc++)
@@ -311,11 +303,11 @@ int main(int argc, char** argv){
 		}
 */
 	}
-	/*printf("MPI Communication time: %lf, for task %d of %d\n", MPI_Wtime() - start, taskid, numtasks);*/
+	/*printf("MPI Communication time: %lf, for task %d of %d\n", MPI_Wtime() - start, info.taskid, info.numtasks);*/
 
 	process();
 
-	if(taskid == MASTER)
+	if(info.taskid == MASTER)
 		flushClean(argv[1]);
 	else
 		cleanup();
