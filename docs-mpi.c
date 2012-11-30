@@ -24,6 +24,9 @@
 #define LIMIT_INF_CHUNK(x) ((taskid)*((x)/numtasks))
 #define LIMIT_SUP_CHUNK(x) (((taskid+1)==numtasks)?(x):((taskid+1)*((x)/numtasks)))
 
+#define FLIMIT_INF_CHUNK(x,y) ((y)*((x)/numtasks))
+#define FLIMIT_SUP_CHUNK(x,y) (((y+1)==numtasks)?(x):((y+1)*((x)/numtasks)))
+
 struct {
 	int doc_sub_cab[3];
 	int *cabinets;
@@ -105,7 +108,7 @@ int i = 0;
 				memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));
 		}
 		else
-			for(cab = lim_inf; cab < lim_sup-1; cab++)
+			for(cab = lim_inf; cab < lim_sup; cab++)
 				memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));	
 /*
 		for(cab = lim_inf; cab < lim_sup; cab++){
@@ -114,8 +117,7 @@ int i = 0;
 		}
 */
 		/* calculate the average of scores for each cabinet */
-		for(cab = 0; cab < (CABINETS); cab++){
-			/*printf("%d task: %d, cab: %d\n", i, taskid, cab);*/
+		for(cab = lim_inf; cab < lim_sup; cab++){
 			count = 0;
 			for(doc = 0; doc < DOCUMENTS; doc++){
 				if(info.cabinets[doc] == cab){
@@ -127,17 +129,21 @@ int i = 0;
 			for(sub = 0; sub < SUBJECTS; sub++)
 				info.cabScore[cab][sub] /= count;
 		}
-
+		MPI_Barrier(MPI_COMM_WORLD);
 		if(taskid == MASTER){
 			/* falta calcular o resto */
-			for(task = 1; task < numtasks; task++)
-				for(cab = lim_sup; cab < lim_sup-1; cab++){
-					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);
+			for(task = 1; task < numtasks; task++){
+				lim_inf = FLIMIT_INF_CHUNK(CABINETS,task);
+				lim_sup = FLIMIT_SUP_CHUNK(CABINETS,task);
+				for(cab = lim_inf; cab < lim_sup; cab++){
+					/*printf("task: %d, inf: %d, cab: %d, sup: %d\n", taskid, lim_inf, cab, lim_sup);*/
+					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab-CHUNK(CABINETS)]);
 				}
+			}
 		}
 		else {
 			MPI_Request request_cab[CHUNK(CABINETS)];
-			for(cab = lim_inf; cab < lim_sup-1; cab++)
+			for(cab = lim_inf; cab < lim_sup; cab++)
 				MPI_Isend(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, MASTER, CABSCORE_TAG, MPI_COMM_WORLD, &request_cab[cab-lim_inf]);
 			MPI_Waitall(CHUNK(CABINETS), request_cab, status);
 		}
