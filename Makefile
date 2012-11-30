@@ -12,7 +12,7 @@ docs_omp: docs-omp.c
 	$(CC) $(GOODFLAGS) $(TIMER) -fopenmp docs-omp.c -o docs-omp
 
 docs_mpi: docs-mpi.c
-	/usr/lib64/openmpi/bin/mpicc $(GOODFLAGS) $(TIMER) -g docs-mpi.c -lm -o docs-mpi
+	/usr/lib64/openmpi/bin/mpicc $(GOODFLAGS) $(TIMER) -g docs-mpi.c -o docs-mpi
 
 docs_mpi_omp: docs-mpi-omp.c
 	/usr/lib64/openmpi/bin/mpicc $(GOODFLAGS) $(TIMER) -fopenmp -g docs-mpi-omp.c -o docs-mpi-omp
