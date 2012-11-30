@@ -25,5 +25,31 @@ Lisboa, Portugal\\
 \maketitle
 \thispagestyle{empty}
 
+This project consists of a serial and openMP implementation of a given problem. The global objective of openMP is to provide a simple and flexible interface that permits developing parallel applications without having to entirely rewrite existing source code.
+
+	Unfortunately, parallelization comes at a price: scalability is limited by memory architecture and the incurring bigger overhead is only worth if the dataset in consideration is large enough. The serial version of the code was highly optimized before starting work on the parallel approach. This fact turned a baseline comparison much more concise – and harder to beat - when comparing to the improved openMP version.
+
+	Given the original serial source, the effort on parallelization was put on the computation and ordering/iteration of the cabinets and documents in the project.
+	Initially, all of the possible code sequences were indeed parallelized; even the calls to memory allocation functions ((c)malloc(), free() or memset()). However, this turned to be highly inefficient: all this functions depend on a shared resource manipulation (heap) which actually slowed down the whole benchmark. Moreover, given openMP strict requirements, some parts of the code (eg. The opening or closing of the files) couldn't be changed due to the return instructions of the corresponding if statement. Obviously, some code must be run sequentially; however, efforts were made to turn this bit small enough so that no difference was observed in runtime.
+
+	The original source was codified to take advantage of a simpler interpretation and a serial-yet-quick implementation of the problem: after the initialization of the data structures and setting of the relevant information, we would start by calculating a centroid for each cabinet and given a distance to a document, move that document to the “closest” cabinet, looping until all the documents are correctly ordered. In this context, the distance and centroid are shared data structures (in the local scope of process function) which cannot be easily parallelized. However, it was possible to do so recurring to a few tricks. Whenever the data dependency was avoidable, the code was changed to take advantage of this. Moreover, through the reduction and collapse clauses (and an extra variable) the code could be divided in chunks and fully parallelized. During tests, there was no noticiable difference in the scheduling used for the parallelization and most of the times, any extra clause would actually hurt the overall performance of the executable.
+
+	In summary, the only worth parallelization – when possible, without defacing the original algorithm –  was on the code that computes the distance of the documents and the cabinet's centroid. The aforementioned code relies on various for loops, iterating on the documents, the subjects and the cabinets. Given the actual serial code, the parallelization was made in the subjects and cabinets loops – this fact implies that the performance of the parallel execution is dependent on the number of subjects and cabinets instead of the number of documents. 
+	Even than, this approach only makes sense for moderately large datasets with lots of subjects and/or cabinets. Comparatively, for small datasets (like the first example inputs released), I tried to make a compromise between serial and parallel executions. Instead of using bloated conditional omp pragma code, I choose not to over optimize/parallelize and to be able to obtain similar speed for both of them.
+
+	Originally, I did code an extra structure to preserve non-necessary information for being able to parallelize the documents loop too. However, this added an enormous impact on both performance overhead and code size which made it not worth it. Another approach was instead creating and calculating the distances independently and avoid the calls to minimum, doing the following:
+	Unfortunately, as good it may look, my tests proved that due to cache misses this code was indeed inefficient and took some extra time.
+
+	Regarding some specific optimizations (on the serial version too), precise instructions were given to the compiler for inlining methods and to put iteration variables (or frequently accessed ones) on CPU registers. Efforts were made to develop concise, clean and fast code taking in consideration some of the characteristics of the underlying architecture, namely word size and cache hits/misses.
+ 
+Performance:
+
+	All the values present on the table are the average time, in seconds, for each of the tests not taking in account the best and worst time achieved.
+	Since the ultimate gain was achieved when there was a large number of cabinets, the second table shows the same tests but taking in account 100 cabinets.
+
+	The performance results in the normal dataset are very poor due to the vast number of documents (which would be the goal to parallelize in this case). The modified dataset however shows some improvement: a speedup of circa 2.4 times.
+
+	My expectations were that the speedup would indeed be much higher. The decomposition used was not the best. I changed the serial implementation several times to gain a bit more knowledge about the dependencies and to be able explain such a poor result. I learned some of the most common pitfalls of OpenMP the hard way and now, I would be a bit more careful before starting parallelizing code.
+
 
 \end{document}
