@@ -10,17 +10,14 @@ int main(int argc, char **argv){
 
 	srand((unsigned) time(NULL));
 	FILE *resultfile = fopen (argv[4], "w");
-	fprintf(resultfile,"%d\n", cabinets);
-	fprintf(resultfile,"%d\n", documents);
-	fprintf(resultfile,"%d\n", subjects);
+	fprintf(resultfile,"%d\n%d\n%d", cabinets, documents, subjects);
 
 	for (;i < documents; i++){
-		fprintf(resultfile,"%d ",i);
+		fprintf(resultfile,"\n%d ",i);
 		for (j = 0; j < subjects; j++){
 			double temp = ((double)rand() * 25 ) / RAND_MAX ;
 			fprintf(resultfile,"%3.1lf ",temp);
 		}
-		fprintf(resultfile,"\n");
 	}
 	fclose(resultfile);
 
