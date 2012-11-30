@@ -3,9 +3,12 @@
 #include <alloca.h>
 #include <string.h>
 #include <math.h>
-#include <omp.h>
 
-#define LINE_SIZE 1024
+#ifdef GETTIME
+#include <omp.h>
+#endif
+
+#define LINE_SIZE 2048
 #define CENTROID(x,y) centroid[(x) + (y) * info.cabinet]
 #define QUAD(x) (x)*(x)
 
@@ -153,7 +156,10 @@ int flushClean(char *filename){
 }
 
 int main(int argc, char** argv){
+	#ifdef GETTIME
 	double start = omp_get_wtime();
+	#endif
+
 	if(argc != 2 && argc != 3)
 		return -1;
 
@@ -166,7 +172,9 @@ int main(int argc, char** argv){
 
 	flushClean(argv[1]);
 
-	printf("OpenMP time: %fs\n", omp_get_wtime() - start);
+	#ifdef GETTIME
+		printf("OpenMP time: %fs\n", omp_get_wtime() - start);
+	#endif
 
 	return 0;
 }

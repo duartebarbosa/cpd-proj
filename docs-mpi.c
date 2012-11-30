@@ -5,7 +5,7 @@
 #include <math.h>
 #include <mpi.h>
 
-#define LINE_SIZE 1024
+#define LINE_SIZE 2048
 #define QUAD(x) (x)*(x)
 
 #define DOCUMENTS info.doc_sub_cab[0]
@@ -100,8 +100,13 @@ int i = 0;
 		flag = 0;	
 		/*MPI_Barrier(MPI_COMM_WORLD);*/
 
-		for(cab = 0; cab < (CABINETS); cab++)
-			memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));
+		if(taskid == MASTER){
+			for(cab = 0; cab < (CABINETS); cab++)
+				memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));
+		}
+		else
+			for(cab = lim_inf; cab < lim_sup-1; cab++)
+				memset(info.cabScore[cab], 0, SUBJECTS * sizeof(double));	
 /*
 		for(cab = lim_inf; cab < lim_sup; cab++){
 			for(sub = 0; sub < SUBJECTS; sub++)
@@ -126,8 +131,9 @@ int i = 0;
 		if(taskid == MASTER){
 			/* falta calcular o resto */
 			for(task = 1; task < numtasks; task++)
-				for(cab = lim_sup; cab < lim_sup-1; cab++)
+				for(cab = lim_sup; cab < lim_sup-1; cab++){
 					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);
+				}
 		}
 		else {
 			MPI_Request request_cab[CHUNK(CABINETS)];
@@ -228,8 +234,11 @@ int main(int argc, char** argv){
 	int loop = 0;
 	int position=0;
 	int mode = 0;
+
+	#ifdef GETTIME
 	double start = MPI_Wtime();
-	
+	#endif
+
 	if(argc != 2 && argc != 3)
 		return -1;
 
@@ -306,7 +315,10 @@ int main(int argc, char** argv){
 		cleanup();
 
 	MPI_Finalize();
+
+	#ifdef GETTIME
 	printf("MPI time: %lf\n", MPI_Wtime() - start);
+	#endif
 
 	return 0;
 }

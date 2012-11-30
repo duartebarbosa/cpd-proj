@@ -5,7 +5,7 @@
 #include <math.h>
 #include <omp.h>
 
-#define LINE_SIZE 1024
+#define LINE_SIZE 2048
 #define QUAD(x) (x)*(x)
 
 struct {
@@ -164,8 +164,10 @@ int flushClean(char *filename){
 }
 
 int main(int argc, char** argv){
+	#ifdef GETTIME
 	double start = omp_get_wtime();
-	/*omp_set_num_threads(6);*/
+	#endif
+
 	if(argc != 2 && argc != 3)
 		return -1;
 
@@ -178,7 +180,9 @@ int main(int argc, char** argv){
 
 	flushClean(argv[1]);
 
+	#ifdef GETTIME
 	printf("OpenMP time: %fs\n", omp_get_wtime() - start);
+	#endif
 
 	return 0;
 }
