@@ -9,7 +9,7 @@ sync
 for((i=0; i < 4; i++)) do
 	echo "_________________________________________"
 	echo "input: "${FILES[i]}
-	time /usr/lib64/openmpi/bin/mpirun -np 2 ./docs-mpi sampleDocInstances/in/${FILES[i]}.in
+	time /usr/lib64/openmpi/bin/mpirun -np 4 ./docs-mpi sampleDocInstances/in/${FILES[i]}.in
 	cmp sampleDocInstances/in/${FILES[i]}.out sampleDocInstances/out/${FILES[i]}.out
 done
 exit

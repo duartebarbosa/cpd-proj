@@ -18,6 +18,7 @@
 #define FILL_TAG 20
 #define CABSCORE_TAG 3
 #define FLAG_TAG 50
+#define CABINETS_TAG 60
 
 #define CHUNK(x) ((x)/numtasks)
 #define LIMIT_INF_CHUNK(x) ((taskid)*((x)/numtasks))
@@ -126,7 +127,7 @@ int i = 0;
 			/* falta calcular o resto */
 			for(task = 1; task < numtasks; task++)
 				for(cab = lim_sup; cab < lim_sup-1; cab++)
-					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);			
+					MPI_Recv(info.cabScore[cab], SUBJECTS, MPI_DOUBLE, task, CABSCORE_TAG, MPI_COMM_WORLD, &status[cab]);
 		}
 		else {
 			MPI_Request request_cab[CHUNK(CABINETS)];
@@ -161,9 +162,16 @@ int i = 0;
 					MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
 			}
 			MPI_Waitall(numtasks-1, request_task, MPI_STATUS_IGNORE);
+			if(flag){
+				for(task = 1; task < numtasks; task++)
+					MPI_Isend(info.cabinets, DOCUMENTS, MPI_INT, task, CABINETS_TAG, MPI_COMM_WORLD, &request_task[task]);
+				MPI_Waitall(numtasks-1, request_task, MPI_STATUS_IGNORE);
+			}
 		}
 		else {
 			MPI_Recv(&flag, 1, MPI_INT, MASTER, FLAG_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			if(flag)
+				MPI_Recv(info.cabinets, DOCUMENTS, MPI_INT, MASTER, CABINETS_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 		i++;
 	}
