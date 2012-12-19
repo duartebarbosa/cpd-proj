@@ -167,13 +167,13 @@ int i = 0;
 					if(!flag){
 						flag = 1;
 						for(task = 1; task < info.numtasks; task++)
-							MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
+							MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task-1]);
 					}
 				}
 			}
 			if(!flag){
 				for(task = 1; task < info.numtasks; task++)
-					MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task]);
+					MPI_Isend(&flag, 1, MPI_INT, task, FLAG_TAG, MPI_COMM_WORLD, &request_task[task-1]);
 			}
 			MPI_Waitall(info.numtasks-1, request_task, MPI_STATUS_IGNORE);
 			if(flag){
